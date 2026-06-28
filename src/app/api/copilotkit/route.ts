@@ -9,6 +9,8 @@ import { auth } from "@/auth";
 import { recordMessageAndCheck } from "@/lib/usage";
 
 export const runtime = "nodejs";
+// Allow long streaming tutor replies (Vercel default is 10s).
+export const maxDuration = 60;
 
 // In-process tutor: CopilotKit runtime + OpenAI. Pedagogy comes from the
 // chat `instructions`; problem context from CopilotKit readables on the client.
