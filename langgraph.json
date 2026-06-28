@@ -1,0 +1,7 @@
+{
+  "node_version": "20",
+  "graphs": {
+    "tutor": "./agent/tutor.ts:tutorGraph"
+  },
+  "env": ".env"
+}

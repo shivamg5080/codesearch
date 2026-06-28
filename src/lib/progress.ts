@@ -1,0 +1,129 @@
+import { prisma } from "./prisma";
+import type { ProblemStatus, Source } from "@prisma/client";
+
+/** Explicitly set (or toggle off) a problem's status for a user. */
+export async function setProblemStatus(
+  userId: string,
+  problemId: string,
+  status: ProblemStatus | null,
+) {
+  if (status === null) {
+    await prisma.userProblemStatus
+      .delete({ where: { userId_problemId: { userId, problemId } } })
+      .catch(() => {});
+    return;
+  }
+  await prisma.userProblemStatus.upsert({
+    where: { userId_problemId: { userId, problemId } },
+    create: { userId, problemId, status },
+    update: { status },
+  });
+}
+
+export async function getUserStatus(
+  userId: string,
+  problemId: string,
+): Promise<ProblemStatus | null> {
+  const row = await prisma.userProblemStatus.findUnique({
+    where: { userId_problemId: { userId, problemId } },
+  });
+  return row?.status ?? null;
+}
+
+/** Statuses for a set of problems (for badges on the browse list). */
+export async function getStatusMap(
+  userId: string,
+  problemIds: string[],
+): Promise<Record<string, ProblemStatus>> {
+  if (problemIds.length === 0) return {};
+  const rows = await prisma.userProblemStatus.findMany({
+    where: { userId, problemId: { in: problemIds } },
+    select: { problemId: true, status: true },
+  });
+  return Object.fromEntries(rows.map((r) => [r.problemId, r.status]));
+}
+
+/**
+ * Record that the user is working on a problem (called when they chat). Never
+ * downgrades a SOLVED problem; otherwise marks it ATTEMPTING and bumps recency.
+ */
+export async function recordAttempt(userId: string, problemId: string) {
+  const existing = await prisma.userProblemStatus.findUnique({
+    where: { userId_problemId: { userId, problemId } },
+  });
+  if (existing?.status === "SOLVED") {
+    await prisma.userProblemStatus.update({
+      where: { userId_problemId: { userId, problemId } },
+      data: { updatedAt: new Date() },
+    });
+    return;
+  }
+  await prisma.userProblemStatus.upsert({
+    where: { userId_problemId: { userId, problemId } },
+    create: { userId, problemId, status: "ATTEMPTING" },
+    update: { status: "ATTEMPTING" },
+  });
+}
+
+/** Append a user's chat message to a per-(user,problem) conversation log. */
+export async function logUserMessage(
+  userId: string,
+  problemId: string,
+  content: string,
+) {
+  let convo = await prisma.conversation.findFirst({
+    where: { userId, problemId },
+    orderBy: { createdAt: "desc" },
+  });
+  if (!convo) {
+    convo = await prisma.conversation.create({ data: { userId, problemId } });
+  }
+  await prisma.message.create({
+    data: { conversationId: convo.id, role: "USER", content: content.slice(0, 8000) },
+  });
+}
+
+export interface Dashboard {
+  solved: DashItem[];
+  attempting: DashItem[];
+  bookmarked: DashItem[];
+  totalSolved: number;
+  solvedBySource: { source: Source; count: number }[];
+}
+interface DashItem {
+  problemId: string;
+  title: string;
+  source: Source;
+  url: string;
+  difficultyNormalized: number | null;
+  updatedAt: Date;
+}
+
+export async function getDashboard(userId: string): Promise<Dashboard> {
+  const rows = await prisma.userProblemStatus.findMany({
+    where: { userId },
+    include: { problem: true },
+    orderBy: { updatedAt: "desc" },
+  });
+
+  const toItem = (r: (typeof rows)[number]): DashItem => ({
+    problemId: r.problemId,
+    title: r.problem.title,
+    source: r.problem.source,
+    url: r.problem.url,
+    difficultyNormalized: r.problem.difficultyNormalized,
+    updatedAt: r.updatedAt,
+  });
+
+  const solved = rows.filter((r) => r.status === "SOLVED").map(toItem);
+  const bySource = new Map<Source, number>();
+  for (const s of solved) bySource.set(s.source, (bySource.get(s.source) ?? 0) + 1);
+
+  return {
+    solved,
+    attempting: rows.filter((r) => r.status === "ATTEMPTING").map(toItem),
+    bookmarked: rows.filter((r) => r.status === "BOOKMARKED").map(toItem),
+    totalSolved: solved.length,
+    solvedBySource: [...bySource.entries()].map(([source, count]) => ({ source, count })),
+  };
+}
