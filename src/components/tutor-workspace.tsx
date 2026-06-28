@@ -1,13 +1,10 @@
 "use client";
 
-import {
-  CopilotKit,
-  useAgent,
-  UseAgentUpdate,
-  CopilotChat,
-} from "@copilotkit/react-core/v2";
-import "@copilotkit/react-core/v2/styles.css";
-import { useEffect, useRef, useState } from "react";
+import { CopilotKit, useCopilotReadable, useCopilotAction } from "@copilotkit/react-core";
+import { CopilotChat } from "@copilotkit/react-ui";
+import "@copilotkit/react-ui/styles.css";
+import { useState } from "react";
+import { buildInstructions, type TutorMode } from "@/lib/tutor-prompt";
 
 export interface ProblemMeta {
   id: string;
@@ -16,17 +13,6 @@ export interface ProblemMeta {
   tags: string[];
   rating?: number | null;
   url: string;
-}
-
-type TutorMode = "UNDERSTAND" | "HINT" | "REVIEW" | "TEACH" | "QUIZ";
-
-interface TutorState {
-  problem?: ProblemMeta;
-  statement?: string;
-  mode?: TutorMode;
-  userCode?: string;
-  hintLevel?: number;
-  keyPoints?: string[];
 }
 
 const MODES: { id: TutorMode; label: string; hint: string }[] = [
@@ -61,7 +47,7 @@ export function TutorWorkspace({
   authed: boolean;
 }) {
   return (
-    <CopilotKit runtimeUrl="/api/copilotkit" useSingleEndpoint={false}>
+    <CopilotKit runtimeUrl="/api/copilotkit">
       <Workspace
         problem={problem}
         initialStatement={problem.statement ?? ""}
@@ -80,31 +66,65 @@ function Workspace({
   initialStatement: string;
   authed: boolean;
 }) {
-  const { agent } = useAgent({
-    agentId: "default",
-    updates: [UseAgentUpdate.OnStateChanged, UseAgentUpdate.OnRunStatusChanged],
-  });
-
-  const state = (agent.state ?? {}) as TutorState;
   const [mode, setMode] = useState<TutorMode>("UNDERSTAND");
   const [code, setCode] = useState("");
   const [statement, setStatement] = useState(initialStatement);
   const [showStatement, setShowStatement] = useState(!initialStatement);
+  const [hintLevel, setHintLevel] = useState(0);
+  const [keyPoints, setKeyPoints] = useState<string[]>([]);
 
-  // Keep the full shared-state object intact when writing partial updates.
-  const push = (partial: Partial<TutorState>) => {
-    agent.setState({
-      problem,
-      statement,
-      mode,
-      userCode: code,
-      hintLevel: state.hintLevel ?? 0,
-      keyPoints: state.keyPoints ?? [],
-      ...partial,
-    } as TutorState);
-  };
+  // --- Context the tutor can read (sent with each request) ---
+  useCopilotReadable({
+    description: "The current coding problem the learner is working on",
+    value: {
+      title: problem.title,
+      source: problem.source,
+      tags: problem.tags,
+      rating: problem.rating,
+      url: problem.url,
+    },
+  });
+  useCopilotReadable({
+    description:
+      "The full problem statement (may be empty — if so and you don't recognise the problem, ask the learner to paste it)",
+    value: statement || "(not provided)",
+  });
+  useCopilotReadable({ description: "Current tutor mode", value: mode });
+  useCopilotReadable({
+    description: "The learner's current code attempt",
+    value: code || "(none yet)",
+  });
+  useCopilotReadable({
+    description: "Highest progressive-hint level reached so far (0-5)",
+    value: hintLevel,
+  });
 
-  // Persist a pasted statement to the DB so it's cached for everyone next time.
+  // --- The tutor pushes progress into the UI via this action ---
+  useCopilotAction({
+    name: "update_progress",
+    description:
+      "Record the learner's progress. Call this when you give a hint or surface a key insight: pass the new highest hint level (1-5) and the FULL list of key understanding points.",
+    parameters: [
+      {
+        name: "hintLevel",
+        type: "number",
+        description: "Highest progressive-hint level reached (1-5).",
+      },
+      {
+        name: "keyPoints",
+        type: "string[]",
+        description: "Full list of key understanding points so far.",
+        required: false,
+      },
+    ],
+    handler: ({ hintLevel: hl, keyPoints: kp }) => {
+      if (typeof hl === "number") setHintLevel((prev) => Math.max(prev, hl));
+      if (Array.isArray(kp)) setKeyPoints(kp as string[]);
+    },
+    render: () => <></>,
+  });
+
+  // Persist a pasted statement so it's cached for everyone next time.
   const saveStatement = (text: string) => {
     if (!text.trim() || text === initialStatement) return;
     fetch(`/api/problems/${problem.id}/statement`, {
@@ -114,29 +134,14 @@ function Workspace({
     }).catch(() => {});
   };
 
-  // Keep the latest local values so a re-seed never clobbers user edits.
-  const latest = useRef({ mode, code, statement });
-  latest.current = { mode, code, statement };
-
-  // Seed problem + statement into shared state. `useAgent` hands back a NEW
-  // agent instance when the client (re)connects, and a setState on a stale
-  // instance never reaches the live client (the run ships an empty state). So
-  // re-seed whenever the agent identity changes — that covers the connect.
-  useEffect(() => {
-    const s = (agent.state ?? {}) as TutorState;
-    agent.setState({
-      problem,
-      statement: latest.current.statement,
-      mode: latest.current.mode,
-      userCode: latest.current.code,
-      hintLevel: s.hintLevel ?? 0,
-      keyPoints: s.keyPoints ?? [],
-    } as TutorState);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [agent]);
-
-  const hintLevel = state.hintLevel ?? 0;
-  const keyPoints = state.keyPoints ?? [];
+  // Mark the problem Attempting + log the message when the learner asks something.
+  const trackActivity = (message: string) => {
+    fetch(`/api/problems/${problem.id}/activity`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message }),
+    }).catch(() => {});
+  };
 
   return (
     <div className="grid h-[calc(100vh-49px)] grid-cols-1 lg:grid-cols-[1.1fr_1fr]">
@@ -177,7 +182,7 @@ function Workspace({
             : "Open the statement on the judge above and paste it below so the tutor knows the exact problem (cached after the first time), then pick a mode and chat."}
         </p>
 
-        {/* Problem statement — paste once, cached to DB, fed to the agent via shared state */}
+        {/* Problem statement — paste once, cached to DB, read by the tutor */}
         <div className="mb-5">
           <button
             onClick={() => setShowStatement((s) => !s)}
@@ -198,10 +203,7 @@ function Workspace({
           {showStatement && (
             <textarea
               value={statement}
-              onChange={(e) => {
-                setStatement(e.target.value);
-                push({ statement: e.target.value });
-              }}
+              onChange={(e) => setStatement(e.target.value)}
               onBlur={(e) => saveStatement(e.target.value)}
               placeholder="Paste the full problem statement here…"
               spellCheck={false}
@@ -210,15 +212,12 @@ function Workspace({
           )}
         </div>
 
-        {/* Mode selector — writes to shared state */}
+        {/* Mode selector */}
         <div className="mb-6 flex flex-wrap gap-2">
           {MODES.map((m) => (
             <button
               key={m.id}
-              onClick={() => {
-                setMode(m.id);
-                push({ mode: m.id });
-              }}
+              onClick={() => setMode(m.id)}
               title={m.hint}
               className={`rounded-lg border px-3 py-1.5 text-sm transition ${
                 mode === m.id
@@ -231,7 +230,7 @@ function Workspace({
           ))}
         </div>
 
-        {/* Hint-level meter — read from shared state (agent -> UI) */}
+        {/* Hint-level meter — updated by the tutor via update_progress */}
         <div className="mb-6">
           <div className="mb-1.5 flex items-center justify-between text-sm">
             <span className="text-neutral-400">Hint level</span>
@@ -249,7 +248,7 @@ function Workspace({
           </div>
         </div>
 
-        {/* Key points — read from shared state (agent -> UI) */}
+        {/* Key takeaways — populated by the tutor */}
         {keyPoints.length > 0 && (
           <div className="mb-6 rounded-xl border border-neutral-800 bg-neutral-900/50 p-4">
             <h3 className="mb-2 text-sm font-semibold text-neutral-300">Key takeaways</h3>
@@ -264,17 +263,15 @@ function Workspace({
           </div>
         )}
 
-        {/* Code editor — writes to shared state (UI -> agent), used in REVIEW */}
+        {/* Code editor — read by the tutor in Review mode */}
         <div>
           <label className="mb-1.5 block text-sm text-neutral-400">
-            Your code <span className="text-neutral-600">(switch to “Review code” and ask the tutor)</span>
+            Your code{" "}
+            <span className="text-neutral-600">(switch to “Review code” and ask the tutor)</span>
           </label>
           <textarea
             value={code}
-            onChange={(e) => {
-              setCode(e.target.value);
-              push({ userCode: e.target.value });
-            }}
+            onChange={(e) => setCode(e.target.value)}
             placeholder="// paste or write your attempt here…"
             spellCheck={false}
             className="h-64 w-full resize-none rounded-xl border border-neutral-800 bg-neutral-900 p-4 font-mono text-sm leading-relaxed text-neutral-200 outline-none focus:border-indigo-500"
@@ -292,7 +289,16 @@ function Workspace({
         </div>
         <div className="min-h-0 flex-1">
           {authed ? (
-            <CopilotChat agentId="default" className="h-full" />
+            <CopilotChat
+              instructions={buildInstructions(mode)}
+              onSubmitMessage={trackActivity}
+              labels={{
+                initial:
+                  "Hi! Ask me anything about this problem — I'll guide you with hints, not spoilers.",
+                placeholder: "Ask the tutor…",
+              }}
+              className="h-full"
+            />
           ) : (
             <div className="flex h-full flex-col items-center justify-center gap-4 p-8 text-center">
               <p className="max-w-xs text-neutral-400">
