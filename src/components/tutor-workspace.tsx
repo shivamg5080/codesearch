@@ -1,10 +1,23 @@
 "use client";
 
-import { CopilotKit, useCopilotReadable, useCopilotAction } from "@copilotkit/react-core";
+import {
+  CopilotKit,
+  useCopilotReadable,
+  useCopilotAction,
+  useCopilotChat,
+  useCopilotAdditionalInstructions,
+} from "@copilotkit/react-core";
 import { CopilotChat } from "@copilotkit/react-ui";
+import { TextMessage, Role } from "@copilotkit/runtime-client-gql";
 import "@copilotkit/react-ui/styles.css";
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { buildInstructions, type TutorMode } from "@/lib/tutor-prompt";
+import {
+  TUTOR_LANGUAGES,
+  DEFAULT_LANGUAGE,
+  languageLabel,
+  isSupportedLanguage,
+} from "@/lib/languages";
 
 export interface ProblemMeta {
   id: string;
@@ -72,6 +85,7 @@ function Workspace({
   const [showStatement, setShowStatement] = useState(!initialStatement);
   const [hintLevel, setHintLevel] = useState(0);
   const [keyPoints, setKeyPoints] = useState<string[]>([]);
+  const [language, setLanguage] = useState(DEFAULT_LANGUAGE);
 
   // --- Context the tutor can read (sent with each request) ---
   useCopilotReadable({
@@ -98,6 +112,20 @@ function Workspace({
     description: "Highest progressive-hint level reached so far (0-5)",
     value: hintLevel,
   });
+
+  // --- Vernacular tutoring: reply in the learner's chosen Indian language. ---
+  // Code, identifiers and LaTeX stay as-is so the technical content is intact.
+  useCopilotAdditionalInstructions(
+    {
+      instructions: `IMPORTANT: Reply ENTIRELY in ${languageLabel(
+        language,
+      )} (language code ${language}). Write all prose, hints and explanations in ${languageLabel(
+        language,
+      )}, but keep code blocks, variable names, function names and LaTeX math exactly as they are (do not translate code or math). Keep technical terms the learner will see in an editor (like "binary search", "DP", "array") in English where natural.`,
+      available: language === "en-IN" ? "disabled" : "enabled",
+    },
+    [language],
+  );
 
   // --- The tutor pushes progress into the UI via this action ---
   useCopilotAction({
@@ -289,15 +317,11 @@ function Workspace({
         </div>
         <div className="min-h-0 flex-1">
           {authed ? (
-            <CopilotChat
-              instructions={buildInstructions(mode)}
-              onSubmitMessage={trackActivity}
-              labels={{
-                initial:
-                  "Hi! Ask me anything about this problem — I'll guide you with hints, not spoilers.",
-                placeholder: "Ask the tutor…",
-              }}
-              className="h-full"
+            <ChatPanel
+              mode={mode}
+              language={language}
+              setLanguage={setLanguage}
+              trackActivity={trackActivity}
             />
           ) : (
             <div className="flex h-full flex-col items-center justify-center gap-4 p-8 text-center">
@@ -313,6 +337,272 @@ function Workspace({
             </div>
           )}
         </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * The chat + the Sarvam-powered voice bar. Split out so the voice hooks
+ * (mic capture, auto-speak) only mount when the learner is signed in.
+ */
+function ChatPanel({
+  mode,
+  language,
+  setLanguage,
+  trackActivity,
+}: {
+  mode: TutorMode;
+  language: string;
+  setLanguage: (code: string) => void;
+  trackActivity: (message: string) => void;
+}) {
+  const { appendMessage } = useCopilotChat();
+
+  const [speakReplies, setSpeakReplies] = useState(false);
+  const [recording, setRecording] = useState(false);
+  const [voiceBusy, setVoiceBusy] = useState(false);
+  const [voiceError, setVoiceError] = useState<string | null>(null);
+
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  // One persistent <audio> element, reused for every reply. Browsers grant
+  // autoplay to an element that was first played during a user gesture, so we
+  // "unlock" this one on the Speak-replies click and replay it programmatically.
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  // The chat DOM (CopilotKit's message store isn't readable in this build, so we
+  // read assistant replies straight from the rendered DOM instead).
+  const chatRef = useRef<HTMLDivElement | null>(null);
+  const lastSpokenRef = useRef("");
+  const speakRepliesRef = useRef(speakReplies);
+  speakRepliesRef.current = speakReplies;
+  const languageRef = useRef(language);
+  languageRef.current = language;
+
+  // Text of the most recent assistant bubble rendered by CopilotChat.
+  const latestReplyText = useCallback(() => {
+    const els = chatRef.current?.querySelectorAll(".copilotKitAssistantMessage");
+    const last = els && els[els.length - 1];
+    return last ? (last.textContent ?? "").trim() : "";
+  }, []);
+
+  // A valid (silent) WAV so the first play during a click actually resolves and
+  // grants autoplay permission for later programmatic plays.
+  const SILENT_WAV =
+    "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=";
+
+  const getAudio = useCallback(() => {
+    if (!audioRef.current) audioRef.current = new Audio();
+    return audioRef.current;
+  }, []);
+
+  // --- Speak a string via Sarvam TTS in the current language. ---
+  const speak = useCallback(
+    async (text: string) => {
+      if (!text.trim()) return;
+      const audio = getAudio();
+      try {
+        const res = await fetch("/api/voice/tts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text, language: languageRef.current }),
+        });
+        if (!res.ok) {
+          setVoiceError(`Voice failed (${res.status}).`);
+          return;
+        }
+        const { audios } = (await res.json()) as { audios?: string[] };
+        if (!audios?.length) {
+          setVoiceError("No audio returned.");
+          return;
+        }
+        // Play chunks back-to-back on the same (unlocked) element.
+        for (const b64 of audios) {
+          await new Promise<void>((resolve) => {
+            audio.onended = () => resolve();
+            audio.onerror = () => resolve();
+            audio.src = `data:audio/wav;base64,${b64}`;
+            audio.play().then(
+              () => setVoiceError(null),
+              () => {
+                setVoiceError("Tap 🔊 once to allow audio.");
+                resolve();
+              },
+            );
+          });
+        }
+      } catch {
+        setVoiceError("Voice request failed.");
+      }
+    },
+    [getAudio],
+  );
+
+  // --- Auto-speak each completed assistant reply when enabled. ---
+  // Watch the chat DOM; once it stops mutating (stream finished), speak the
+  // latest assistant bubble if it's new.
+  useEffect(() => {
+    const root = chatRef.current;
+    if (!root) return;
+    let timer: ReturnType<typeof setTimeout>;
+    const observer = new MutationObserver(() => {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        if (!speakRepliesRef.current) return;
+        const text = latestReplyText();
+        if (!text || text === lastSpokenRef.current) return;
+        lastSpokenRef.current = text;
+        void speak(text);
+      }, 1200);
+    });
+    observer.observe(root, { childList: true, subtree: true, characterData: true });
+    return () => {
+      observer.disconnect();
+      clearTimeout(timer);
+    };
+  }, [latestReplyText, speak]);
+
+  // --- Mic: record → Sarvam STT → send as a chat message. ---
+  const stopRecording = useCallback(() => {
+    mediaRecorderRef.current?.stop();
+  }, []);
+
+  const startRecording = useCallback(async () => {
+    setVoiceError(null);
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setVoiceError("Mic not supported in this browser.");
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      chunksRef.current = [];
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) chunksRef.current.push(e.data);
+      };
+      recorder.onstop = async () => {
+        stream.getTracks().forEach((t) => t.stop());
+        setRecording(false);
+        const blob = new Blob(chunksRef.current, { type: "audio/webm" });
+        if (blob.size === 0) return;
+        setVoiceBusy(true);
+        try {
+          const form = new FormData();
+          form.append("file", blob, "audio.webm");
+          // Auto-detect when on English, else bias to the chosen language.
+          form.append("language_code", language === "en-IN" ? "unknown" : language);
+          const res = await fetch("/api/voice/stt", { method: "POST", body: form });
+          if (!res.ok) {
+            setVoiceError("Couldn't transcribe — try again.");
+            return;
+          }
+          const { transcript, languageCode } = (await res.json()) as {
+            transcript: string;
+            languageCode: string | null;
+          };
+          if (!transcript.trim()) {
+            setVoiceError("Didn't catch that — try again.");
+            return;
+          }
+          // If we auto-detected a supported Indian language, switch the tutor to it.
+          if (languageCode && languageCode !== language && isSupportedLanguage(languageCode)) {
+            setLanguage(languageCode);
+          }
+          trackActivity(transcript);
+          await appendMessage(new TextMessage({ content: transcript, role: Role.User }));
+        } finally {
+          setVoiceBusy(false);
+        }
+      };
+      mediaRecorderRef.current = recorder;
+      recorder.start();
+      setRecording(true);
+    } catch {
+      setVoiceError("Mic permission denied.");
+    }
+  }, [language, setLanguage, trackActivity, appendMessage]);
+
+  return (
+    <div className="flex h-full flex-col">
+      {/* Sarvam voice bar */}
+      <div className="flex flex-wrap items-center gap-2 border-b border-neutral-800 px-4 py-2.5">
+        <label className="flex items-center gap-1.5 text-xs text-neutral-400">
+          <span>🌐</span>
+          <select
+            value={language}
+            onChange={(e) => setLanguage(e.target.value)}
+            className="rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1 text-xs text-neutral-200 outline-none focus:border-indigo-500"
+          >
+            {TUTOR_LANGUAGES.map((l) => (
+              <option key={l.code} value={l.code}>
+                {l.native}
+                {l.code === "en-IN" ? "" : ` · ${l.label}`}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <button
+          type="button"
+          onClick={recording ? stopRecording : startRecording}
+          disabled={voiceBusy}
+          title="Ask by voice (Sarvam speech-to-text)"
+          className={`flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs transition disabled:opacity-50 ${
+            recording
+              ? "border-red-500 bg-red-500/15 text-red-300"
+              : "border-neutral-700 text-neutral-300 hover:border-indigo-500 hover:text-indigo-300"
+          }`}
+        >
+          <span>{recording ? "⏺" : "🎤"}</span>
+          {recording ? "Stop" : voiceBusy ? "…" : "Speak"}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            const turningOn = !speakReplies;
+            setSpeakReplies(turningOn);
+            if (turningOn) {
+              // Unlock autoplay within this user gesture, then speak the most
+              // recent reply right away (future replies use the same element).
+              const audio = getAudio();
+              audio.src = SILENT_WAV;
+              audio.play().catch(() => {});
+              const text = latestReplyText();
+              if (text) {
+                lastSpokenRef.current = text;
+                void speak(text);
+              }
+            } else {
+              audioRef.current?.pause();
+            }
+          }}
+          title="Read the tutor's replies aloud (Sarvam text-to-speech)"
+          className={`flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs transition ${
+            speakReplies
+              ? "border-indigo-500 bg-indigo-500/15 text-indigo-200"
+              : "border-neutral-700 text-neutral-300 hover:border-indigo-500 hover:text-indigo-300"
+          }`}
+        >
+          <span>{speakReplies ? "🔊" : "🔈"}</span>
+          Speak replies
+        </button>
+
+        {voiceError && <span className="text-xs text-red-400">{voiceError}</span>}
+        <span className="ml-auto text-[10px] text-neutral-600">voice by Sarvam AI</span>
+      </div>
+
+      <div ref={chatRef} className="min-h-0 flex-1">
+        <CopilotChat
+          instructions={buildInstructions(mode)}
+          onSubmitMessage={trackActivity}
+          labels={{
+            initial:
+              "Hi! Ask me anything about this problem — I'll guide you with hints, not spoilers. You can also ask by voice in your language.",
+            placeholder: "Ask the tutor…",
+          }}
+          className="h-full"
+        />
       </div>
     </div>
   );
