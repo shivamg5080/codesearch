@@ -52,12 +52,19 @@ const HINT_LABELS = [
   "L5 · Full solution",
 ];
 
+export interface ChatHistoryMessage {
+  role: "USER" | "ASSISTANT";
+  content: string;
+}
+
 export function TutorWorkspace({
   problem,
   authed,
+  history = [],
 }: {
   problem: ProblemMeta & { statement?: string | null };
   authed: boolean;
+  history?: ChatHistoryMessage[];
 }) {
   return (
     <CopilotKit runtimeUrl="/api/copilotkit">
@@ -65,6 +72,7 @@ export function TutorWorkspace({
         problem={problem}
         initialStatement={problem.statement ?? ""}
         authed={authed}
+        history={history}
       />
     </CopilotKit>
   );
@@ -74,10 +82,12 @@ function Workspace({
   problem,
   initialStatement,
   authed,
+  history,
 }: {
   problem: ProblemMeta;
   initialStatement: string;
   authed: boolean;
+  history: ChatHistoryMessage[];
 }) {
   const [mode, setMode] = useState<TutorMode>("UNDERSTAND");
   const [code, setCode] = useState("");
@@ -318,10 +328,12 @@ function Workspace({
         <div className="min-h-0 flex-1">
           {authed ? (
             <ChatPanel
+              problemId={problem.id}
               mode={mode}
               language={language}
               setLanguage={setLanguage}
               trackActivity={trackActivity}
+              history={history}
             />
           ) : (
             <div className="flex h-full flex-col items-center justify-center gap-4 p-8 text-center">
@@ -347,15 +359,19 @@ function Workspace({
  * (mic capture, auto-speak) only mount when the learner is signed in.
  */
 function ChatPanel({
+  problemId,
   mode,
   language,
   setLanguage,
   trackActivity,
+  history,
 }: {
+  problemId: string;
   mode: TutorMode;
   language: string;
   setLanguage: (code: string) => void;
   trackActivity: (message: string) => void;
+  history: ChatHistoryMessage[];
 }) {
   const { appendMessage } = useCopilotChat();
 
@@ -363,6 +379,7 @@ function ChatPanel({
   const [recording, setRecording] = useState(false);
   const [voiceBusy, setVoiceBusy] = useState(false);
   const [voiceError, setVoiceError] = useState<string | null>(null);
+  const [showHistory, setShowHistory] = useState(false);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -374,10 +391,39 @@ function ChatPanel({
   // read assistant replies straight from the rendered DOM instead).
   const chatRef = useRef<HTMLDivElement | null>(null);
   const lastSpokenRef = useRef("");
+  // Persist assistant replies for reload: only after the learner has sent
+  // something (skips the static greeting), deduped by text.
+  const lastLoggedRef = useRef("");
+  const sentAtLeastOnceRef = useRef(false);
+  // The static greeting bubble — never log or speak it.
+  const greetingRef = useRef("");
   const speakRepliesRef = useRef(speakReplies);
   speakRepliesRef.current = speakReplies;
   const languageRef = useRef(language);
   languageRef.current = language;
+  const modeRef = useRef(mode);
+  modeRef.current = mode;
+
+  // Mark Attempting + log the learner's message, and remember a turn happened.
+  const handleUserMessage = useCallback(
+    (message: string) => {
+      sentAtLeastOnceRef.current = true;
+      trackActivity(message);
+    },
+    [trackActivity],
+  );
+
+  // Persist an assistant reply so it reloads next time.
+  const logAssistantReply = useCallback(
+    (content: string) => {
+      fetch(`/api/problems/${problemId}/activity`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: content, role: "assistant", mode: modeRef.current }),
+      }).catch(() => {});
+    },
+    [problemId],
+  );
 
   // Text of the most recent assistant bubble rendered by CopilotChat.
   const latestReplyText = useCallback(() => {
@@ -438,6 +484,15 @@ function ChatPanel({
     [getAudio],
   );
 
+  // Capture the static greeting bubble once it renders so we never persist or
+  // speak it (only real replies).
+  useEffect(() => {
+    const t = setTimeout(() => {
+      if (!greetingRef.current) greetingRef.current = latestReplyText();
+    }, 800);
+    return () => clearTimeout(t);
+  }, [latestReplyText]);
+
   // --- Auto-speak each completed assistant reply when enabled. ---
   // Watch the chat DOM; once it stops mutating (stream finished), speak the
   // latest assistant bubble if it's new.
@@ -448,11 +503,18 @@ function ChatPanel({
     const observer = new MutationObserver(() => {
       clearTimeout(timer);
       timer = setTimeout(() => {
-        if (!speakRepliesRef.current) return;
         const text = latestReplyText();
-        if (!text || text === lastSpokenRef.current) return;
-        lastSpokenRef.current = text;
-        void speak(text);
+        if (!text || text === greetingRef.current) return;
+        // Persist the reply (after a real turn) so it reloads next visit.
+        if (sentAtLeastOnceRef.current && text !== lastLoggedRef.current) {
+          lastLoggedRef.current = text;
+          logAssistantReply(text);
+        }
+        // Speak it if enabled.
+        if (speakRepliesRef.current && text !== lastSpokenRef.current) {
+          lastSpokenRef.current = text;
+          void speak(text);
+        }
       }, 1200);
     });
     observer.observe(root, { childList: true, subtree: true, characterData: true });
@@ -460,7 +522,7 @@ function ChatPanel({
       observer.disconnect();
       clearTimeout(timer);
     };
-  }, [latestReplyText, speak]);
+  }, [latestReplyText, speak, logAssistantReply]);
 
   // --- Mic: record → Sarvam STT → send as a chat message. ---
   const stopRecording = useCallback(() => {
@@ -508,7 +570,7 @@ function ChatPanel({
           if (languageCode && languageCode !== language && isSupportedLanguage(languageCode)) {
             setLanguage(languageCode);
           }
-          trackActivity(transcript);
+          handleUserMessage(transcript);
           await appendMessage(new TextMessage({ content: transcript, role: Role.User }));
         } finally {
           setVoiceBusy(false);
@@ -520,7 +582,7 @@ function ChatPanel({
     } catch {
       setVoiceError("Mic permission denied.");
     }
-  }, [language, setLanguage, trackActivity, appendMessage]);
+  }, [language, setLanguage, handleUserMessage, appendMessage]);
 
   return (
     <div className="flex h-full flex-col">
@@ -569,7 +631,7 @@ function ChatPanel({
               audio.src = SILENT_WAV;
               audio.play().catch(() => {});
               const text = latestReplyText();
-              if (text) {
+              if (text && text !== greetingRef.current) {
                 lastSpokenRef.current = text;
                 void speak(text);
               }
@@ -592,10 +654,40 @@ function ChatPanel({
         <span className="ml-auto text-[10px] text-neutral-600">voice by Sarvam AI</span>
       </div>
 
+      {/* Previous conversation — reloaded from the DB on revisit. */}
+      {history.length > 0 && (
+        <div className="border-b border-neutral-800 bg-neutral-900/40">
+          <button
+            onClick={() => setShowHistory((s) => !s)}
+            className="flex w-full items-center gap-1.5 px-4 py-2 text-xs text-neutral-400 hover:text-neutral-200"
+          >
+            <span className={`transition ${showHistory ? "rotate-90" : ""}`}>▸</span>
+            Previous conversation ({history.length} message{history.length === 1 ? "" : "s"})
+          </button>
+          {showHistory && (
+            <div className="max-h-72 space-y-2 overflow-y-auto px-4 pb-3">
+              {history.map((m, i) => (
+                <div key={i} className={m.role === "USER" ? "text-right" : "text-left"}>
+                  <span
+                    className={`inline-block max-w-[85%] whitespace-pre-wrap rounded-lg px-3 py-1.5 text-left text-sm ${
+                      m.role === "USER"
+                        ? "bg-neutral-800 text-neutral-100"
+                        : "bg-neutral-900 text-neutral-300"
+                    }`}
+                  >
+                    {m.content}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       <div ref={chatRef} className="min-h-0 flex-1">
         <CopilotChat
           instructions={buildInstructions(mode)}
-          onSubmitMessage={trackActivity}
+          onSubmitMessage={handleUserMessage}
           labels={{
             initial:
               "Hi! Ask me anything about this problem — I'll guide you with hints, not spoilers. You can also ask by voice in your language.",

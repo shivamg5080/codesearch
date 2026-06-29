@@ -1,5 +1,5 @@
 import { prisma } from "./prisma";
-import type { ProblemStatus, Source } from "@prisma/client";
+import type { ProblemStatus, Source, TutorMode } from "@prisma/client";
 
 /** Explicitly set (or toggle off) a problem's status for a user. */
 export async function setProblemStatus(
@@ -81,6 +81,49 @@ export async function logUserMessage(
   await prisma.message.create({
     data: { conversationId: convo.id, role: "USER", content: content.slice(0, 8000) },
   });
+}
+
+/** Append the tutor's reply to the latest per-(user,problem) conversation. */
+export async function logAssistantMessage(
+  userId: string,
+  problemId: string,
+  content: string,
+  mode?: TutorMode,
+) {
+  let convo = await prisma.conversation.findFirst({
+    where: { userId, problemId },
+    orderBy: { createdAt: "desc" },
+  });
+  if (!convo) {
+    convo = await prisma.conversation.create({ data: { userId, problemId } });
+  }
+  await prisma.message.create({
+    data: {
+      conversationId: convo.id,
+      role: "ASSISTANT",
+      content: content.slice(0, 8000),
+      mode: mode ?? null,
+    },
+  });
+}
+
+export interface ConversationMessage {
+  role: "USER" | "ASSISTANT";
+  content: string;
+}
+
+/** Full chronological history for a (user, problem) — used to reload the chat. */
+export async function getConversation(
+  userId: string,
+  problemId: string,
+): Promise<ConversationMessage[]> {
+  const convo = await prisma.conversation.findFirst({
+    where: { userId, problemId },
+    orderBy: { createdAt: "desc" },
+    include: { messages: { orderBy: { createdAt: "asc" } } },
+  });
+  if (!convo) return [];
+  return convo.messages.map((m) => ({ role: m.role, content: m.content }));
 }
 
 export interface Dashboard {

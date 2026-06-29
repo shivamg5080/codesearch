@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getProblemWithStatement } from "@/lib/problems";
-import { getUserStatus } from "@/lib/progress";
+import { getUserStatus, getConversation } from "@/lib/progress";
 import { TutorWorkspace } from "@/components/tutor-workspace";
 import { AuthButton } from "@/components/auth-button";
 import { ProblemStatusControls } from "@/components/problem-status-controls";
@@ -19,9 +19,12 @@ export default async function ProblemPage({
   ]);
   if (!problem) notFound();
 
-  const status = session?.user?.id
-    ? await getUserStatus(session.user.id, id)
-    : null;
+  const [status, history] = session?.user?.id
+    ? await Promise.all([
+        getUserStatus(session.user.id, id),
+        getConversation(session.user.id, id),
+      ])
+    : [null, []];
 
   return (
     <main className="min-h-screen bg-neutral-950 text-neutral-100">
@@ -36,6 +39,7 @@ export default async function ProblemPage({
       </div>
       <TutorWorkspace
         authed={!!session?.user}
+        history={history}
         problem={{
           id: problem.id,
           title: problem.title,
