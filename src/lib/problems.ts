@@ -52,8 +52,9 @@ export async function getProblem(id: string) {
 
 /**
  * Load a problem and, for sources whose statements we can fetch (LeetCode via
- * GraphQL, CSES via scrape), lazily fetch + cache the statement on first open.
- * Codeforces/CodeChef are Cloudflare-blocked, so those still rely on paste.
+ * GraphQL, CSES + CodeChef via their public APIs), lazily fetch + cache the
+ * statement on first open. Codeforces is Cloudflare-blocked, so it relies on
+ * paste.
  */
 export async function getProblemWithStatement(id: string) {
   const problem = await prisma.problem.findUnique({ where: { id } });
@@ -69,6 +70,9 @@ export async function getProblemWithStatement(id: string) {
     } else if (problem.source === "CSES") {
       const { fetchCsesStatement } = await import("./cses");
       statement = await fetchCsesStatement(problem.sourceId);
+    } else if (problem.source === "CODECHEF") {
+      const { fetchCodechefStatement } = await import("./codechef");
+      statement = await fetchCodechefStatement(problem.sourceId);
     }
   } catch {
     statement = null; // fetch failed — fall back to paste, never block the page

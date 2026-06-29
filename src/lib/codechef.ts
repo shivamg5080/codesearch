@@ -41,6 +41,106 @@ export function ccUrl(p: CCProblem): string {
   return `https://www.codechef.com/problems/${p.code}`;
 }
 
+// --- Statement fetch (for lazy auto-load on first open) ---
+
+interface CCSampleCase {
+  input?: string;
+  output?: string;
+  explanation?: string;
+}
+
+interface CCProblemComponents {
+  statement?: string;
+  inputFormat?: string;
+  outputFormat?: string;
+  constraints?: string;
+  subtasks?: string;
+  // Sometimes a JSON-encoded string, sometimes already an array.
+  sampleTestCases?: string | CCSampleCase[];
+}
+
+interface CCProblemDetail {
+  status: string;
+  body?: string;
+  problemComponents?: CCProblemComponents;
+}
+
+// CodeChef's legacy `body` is often just this placeholder template.
+const CC_PLACEHOLDER = "This is an example problem statement in markdown";
+
+function ccSection(title: string, content?: string): string {
+  const c = content?.trim();
+  return c ? `\n\n### ${title}\n${c}` : "";
+}
+
+function ccSamples(raw?: string | CCSampleCase[]): string {
+  if (!raw) return "";
+  let cases: CCSampleCase[];
+  if (Array.isArray(raw)) {
+    cases = raw;
+  } else if (raw.trim()) {
+    try {
+      cases = JSON.parse(raw) as CCSampleCase[];
+    } catch {
+      return "";
+    }
+  } else {
+    return "";
+  }
+  if (!Array.isArray(cases) || cases.length === 0) return "";
+  const blocks = cases
+    .map((c, i) => {
+      const parts = [`**Sample ${i + 1}**`];
+      if (c.input?.trim()) parts.push(`Input:\n\`\`\`\n${c.input.trim()}\n\`\`\``);
+      if (c.output?.trim()) parts.push(`Output:\n\`\`\`\n${c.output.trim()}\n\`\`\``);
+      if (c.explanation?.trim()) parts.push(`Explanation: ${c.explanation.trim()}`);
+      return parts.join("\n");
+    })
+    .join("\n\n");
+  return blocks ? `\n\n### Sample Test Cases\n${blocks}` : "";
+}
+
+/**
+ * Fetch a CodeChef problem statement via the same public API used for the
+ * listing (UA + XHR header get past the basic gate). The real statement lives
+ * in `problemComponents`; the legacy `body` is usually a placeholder. Returns
+ * assembled markdown, or null if unavailable (caller falls back to paste).
+ */
+export async function fetchCodechefStatement(code: string): Promise<string | null> {
+  const res = await fetch(
+    `https://www.codechef.com/api/contests/PRACTICE/problems/${encodeURIComponent(code)}`,
+    { headers: { "User-Agent": UA, "x-requested-with": "XMLHttpRequest" } },
+  );
+  if (!res.ok) return null;
+  const data = (await res.json()) as CCProblemDetail;
+  if (data.status !== "success") return null;
+
+  let raw: string | null = null;
+
+  const pc = data.problemComponents;
+  if (pc?.statement?.trim()) {
+    raw =
+      pc.statement.trim() +
+      ccSection("Input", pc.inputFormat) +
+      ccSection("Output", pc.outputFormat) +
+      ccSection("Constraints", pc.constraints) +
+      ccSection("Subtasks", pc.subtasks) +
+      ccSamples(pc.sampleTestCases);
+  } else {
+    // Fall back to the legacy body if it's a real statement (not the template).
+    const body = data.body?.trim();
+    if (body && !body.startsWith(CC_PLACEHOLDER)) raw = body;
+  }
+
+  if (!raw?.trim()) return null;
+  // Some problems embed HTML (old `body`, or HTML inside a component); strip it.
+  if (/<[a-z!/][\s\S]*>/i.test(raw)) {
+    const { htmlToText } = await import("./html");
+    raw = htmlToText(raw);
+  }
+  return raw.trim() || null;
+}
+
 /** Parsed numeric rating, or null when unrated / out of sane range. */
 export function ccRating(raw: string): number | null {
   const r = parseInt(raw, 10);
