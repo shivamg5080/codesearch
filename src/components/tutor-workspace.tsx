@@ -319,7 +319,7 @@ function Workspace({
           />
         </div>
 
-        <RunPanel code={code} authed={authed} />
+        <RunPanel code={code} authed={authed} source={problem.source} />
       </div>
 
       {/* Right: the AI tutor */}
@@ -717,7 +717,15 @@ interface RunResult {
 /**
  * Run the C++ code in the editor against a sample input via Judge0, in-browser.
  */
-function RunPanel({ code, authed }: { code: string; authed: boolean }) {
+function RunPanel({
+  code,
+  authed,
+  source,
+}: {
+  code: string;
+  authed: boolean;
+  source: string;
+}) {
   const [stdin, setStdin] = useState("");
   const [result, setResult] = useState<RunResult | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -767,6 +775,13 @@ function RunPanel({ code, authed }: { code: string; authed: boolean }) {
           {running ? "Running…" : "▶ Run C++"}
         </button>
       </div>
+      {source === "LEETCODE" && (
+        <p className="mb-1.5 text-xs text-amber-400/90">
+          Heads up: LeetCode gives you a <code>class Solution</code>, which can’t run on its
+          own. Write a complete program with <code>main()</code> that reads stdin and prints
+          output to run it here.
+        </p>
+      )}
       <textarea
         value={stdin}
         onChange={(e) => setStdin(e.target.value)}

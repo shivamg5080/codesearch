@@ -1,7 +1,7 @@
 import type { NextRequest } from "next/server";
 import { z } from "zod";
 import { auth } from "@/auth";
-import { runCpp } from "@/lib/judge0";
+import { runCpp } from "@/lib/runner";
 
 export const runtime = "nodejs";
 // Compile + run can take a few seconds on the public Judge0 instance.
