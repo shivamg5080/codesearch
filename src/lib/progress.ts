@@ -1,6 +1,14 @@
 import { prisma } from "./prisma";
 import type { ProblemStatus, Source, TutorMode } from "@prisma/client";
 
+// Spaced-repetition intervals (days) after solving. Each successful review
+// advances to the next, longer interval; forgetting resets to the first.
+const REVIEW_INTERVALS_DAYS = [1, 3, 7, 16, 35, 90];
+
+function daysFromNow(days: number): Date {
+  return new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+}
+
 /** Explicitly set (or toggle off) a problem's status for a user. */
 export async function setProblemStatus(
   userId: string,
@@ -13,10 +21,41 @@ export async function setProblemStatus(
       .catch(() => {});
     return;
   }
+  // Marking SOLVED schedules the first spaced-repetition review; other statuses
+  // clear any pending review.
+  const review =
+    status === "SOLVED"
+      ? { reviewStage: 0, nextReviewAt: daysFromNow(REVIEW_INTERVALS_DAYS[0]) }
+      : { nextReviewAt: null };
   await prisma.userProblemStatus.upsert({
     where: { userId_problemId: { userId, problemId } },
-    create: { userId, problemId, status },
-    update: { status },
+    create: { userId, problemId, status, ...review },
+    update: { status, ...review },
+  });
+}
+
+/**
+ * Record a spaced-repetition review of a solved problem. If remembered, advance
+ * to the next (longer) interval; otherwise reset to the first interval.
+ */
+export async function recordReview(
+  userId: string,
+  problemId: string,
+  remembered: boolean,
+) {
+  const row = await prisma.userProblemStatus.findUnique({
+    where: { userId_problemId: { userId, problemId } },
+  });
+  if (!row) return;
+  const nextStage = remembered
+    ? Math.min(row.reviewStage + 1, REVIEW_INTERVALS_DAYS.length - 1)
+    : 0;
+  await prisma.userProblemStatus.update({
+    where: { userId_problemId: { userId, problemId } },
+    data: {
+      reviewStage: nextStage,
+      nextReviewAt: daysFromNow(REVIEW_INTERVALS_DAYS[nextStage]),
+    },
   });
 }
 
@@ -127,6 +166,7 @@ export async function getConversation(
 }
 
 export interface Dashboard {
+  dueReviews: DashItem[];
   solved: DashItem[];
   attempting: DashItem[];
   bookmarked: DashItem[];
@@ -162,7 +202,16 @@ export async function getDashboard(userId: string): Promise<Dashboard> {
   const bySource = new Map<Source, number>();
   for (const s of solved) bySource.set(s.source, (bySource.get(s.source) ?? 0) + 1);
 
+  const now = Date.now();
+  const dueReviews = rows
+    .filter(
+      (r) =>
+        r.status === "SOLVED" && r.nextReviewAt != null && r.nextReviewAt.getTime() <= now,
+    )
+    .map(toItem);
+
   return {
+    dueReviews,
     solved,
     attempting: rows.filter((r) => r.status === "ATTEMPTING").map(toItem),
     bookmarked: rows.filter((r) => r.status === "BOOKMARKED").map(toItem),

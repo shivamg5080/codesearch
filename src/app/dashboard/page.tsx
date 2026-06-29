@@ -4,6 +4,7 @@ import type { Source } from "@prisma/client";
 import { auth } from "@/auth";
 import { getDashboard, type Dashboard } from "@/lib/progress";
 import { AuthButton } from "@/components/auth-button";
+import { ReviewList } from "@/components/review-list";
 
 const SOURCE_LABEL: Record<Source, string> = {
   CODEFORCES: "Codeforces",
@@ -27,6 +28,9 @@ export default async function DashboardPage() {
             <p className="mt-1 text-neutral-400">
               {dash.totalSolved} solved · {dash.attempting.length} in progress ·{" "}
               {dash.bookmarked.length} bookmarked
+              {dash.dueReviews.length > 0 && (
+                <> · <span className="text-amber-300">{dash.dueReviews.length} due for review</span></>
+              )}
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -50,6 +54,8 @@ export default async function DashboardPage() {
             ))}
           </div>
         )}
+
+        {dash.dueReviews.length > 0 && <ReviewList items={dash.dueReviews} />}
 
         <Section title="Continue learning" items={dash.attempting} empty="Nothing in progress — open a problem and start chatting." />
         <Section title="Bookmarked" items={dash.bookmarked} empty="No bookmarks yet." />

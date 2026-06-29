@@ -1,21 +1,56 @@
 import {
   CopilotRuntime,
   OpenAIAdapter,
+  type CopilotServiceAdapter,
   copilotRuntimeNextJSAppRouterEndpoint,
 } from "@copilotkit/runtime";
+import { createOpenAI } from "@ai-sdk/openai";
+import type { LanguageModel } from "ai";
 import OpenAI from "openai";
 import type { NextRequest } from "next/server";
 import { auth } from "@/auth";
 import { recordMessageAndCheck } from "@/lib/usage";
 
 export const runtime = "nodejs";
-// Allow long streaming tutor replies (Vercel default is 10s).
+// Sarvam's reasoning models can take ~10s; allow long streaming replies.
 export const maxDuration = 60;
 
-// In-process tutor: CopilotKit runtime + OpenAI. Pedagogy comes from the
+// Sarvam exposes an OpenAI-compatible /chat/completions endpoint but NOT the
+// newer /responses API that @ai-sdk/openai (and thus CopilotKit's OpenAIAdapter)
+// defaults to. Override getLanguageModel() to use the chat-completions model.
+class ChatCompletionsAdapter extends OpenAIAdapter {
+  getLanguageModel(): LanguageModel {
+    const o = this.openai;
+    return createOpenAI({ baseURL: o.baseURL, apiKey: o.apiKey ?? undefined }).chat(
+      this.model,
+    );
+  }
+}
+
+// Tutor brain. Defaults to Sarvam AI (sarvam-native, great at Indian
+// languages); set TUTOR_PROVIDER=openai to use OpenAI instead.
+function buildAdapter(): CopilotServiceAdapter {
+  const provider = process.env.TUTOR_PROVIDER ?? "sarvam";
+  const useSarvam = provider === "sarvam" && !!process.env.SARVAM_API_KEY;
+  if (useSarvam) {
+    return new ChatCompletionsAdapter({
+      openai: new OpenAI({
+        apiKey: process.env.SARVAM_API_KEY,
+        baseURL: "https://api.sarvam.ai/v1",
+      }),
+      model: process.env.SARVAM_MODEL ?? "sarvam-30b",
+    });
+  }
+  return new OpenAIAdapter({
+    openai: new OpenAI({ apiKey: process.env.OPENAI_API_KEY }),
+    model: process.env.OPENAI_MODEL ?? "gpt-4o",
+  });
+}
+
+// In-process tutor: CopilotKit runtime + chat LLM. Pedagogy comes from the
 // chat `instructions`; problem context from CopilotKit readables on the client.
 export async function POST(req: NextRequest) {
-  // Auth-gate + rate-limit the expensive OpenAI call.
+  // Auth-gate + rate-limit the expensive LLM call.
   const session = await auth();
   const userId = session?.user?.id;
   if (!userId) {
@@ -29,10 +64,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const serviceAdapter = new OpenAIAdapter({
-    openai: new OpenAI({ apiKey: process.env.OPENAI_API_KEY }),
-    model: process.env.OPENAI_MODEL ?? "gpt-4o",
-  });
+  const serviceAdapter = buildAdapter();
   const copilotRuntime = new CopilotRuntime();
 
   const { handleRequest } = copilotRuntimeNextJSAppRouterEndpoint({
