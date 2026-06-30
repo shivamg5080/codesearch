@@ -28,9 +28,11 @@ class ChatCompletionsAdapter extends OpenAIAdapter {
 }
 
 // Tutor brain. Defaults to Sarvam AI (sarvam-native, great at Indian
-// languages); set TUTOR_PROVIDER=openai to use OpenAI instead.
-function buildAdapter(): CopilotServiceAdapter {
-  const provider = process.env.TUTOR_PROVIDER ?? "sarvam";
+// languages); pass "openai" to use OpenAI instead. The learner picks the
+// provider in the UI (sent via the x-tutor-model header); TUTOR_PROVIDER is the
+// server-side fallback when the request doesn't specify one.
+function buildAdapter(requested?: string | null): CopilotServiceAdapter {
+  const provider = requested ?? process.env.TUTOR_PROVIDER ?? "sarvam";
   const useSarvam = provider === "sarvam" && !!process.env.SARVAM_API_KEY;
   if (useSarvam) {
     return new ChatCompletionsAdapter({
@@ -64,7 +66,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const serviceAdapter = buildAdapter();
+  const serviceAdapter = buildAdapter(req.headers.get("x-tutor-model"));
   const copilotRuntime = new CopilotRuntime();
 
   const { handleRequest } = copilotRuntimeNextJSAppRouterEndpoint({

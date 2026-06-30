@@ -36,6 +36,13 @@ const MODES: { id: TutorMode; label: string; hint: string }[] = [
   { id: "QUIZ", label: "Quiz me", hint: "Check understanding" },
 ];
 
+export type TutorProvider = "sarvam" | "openai";
+
+const PROVIDERS: { id: TutorProvider; label: string }[] = [
+  { id: "sarvam", label: "Sarvam AI" },
+  { id: "openai", label: "OpenAI" },
+];
+
 const SOURCE_LABEL: Record<string, string> = {
   CODEFORCES: "Codeforces",
   CODECHEF: "CodeChef",
@@ -66,13 +73,18 @@ export function TutorWorkspace({
   authed: boolean;
   history?: ChatHistoryMessage[];
 }) {
+  // Which LLM answers. Lifted here so it can be sent as a request header to the
+  // CopilotKit runtime (headers are re-evaluated on each render).
+  const [provider, setProvider] = useState<TutorProvider>("sarvam");
   return (
-    <CopilotKit runtimeUrl="/api/copilotkit">
+    <CopilotKit runtimeUrl="/api/copilotkit" headers={{ "x-tutor-model": provider }}>
       <Workspace
         problem={problem}
         initialStatement={problem.statement ?? ""}
         authed={authed}
         history={history}
+        provider={provider}
+        setProvider={setProvider}
       />
     </CopilotKit>
   );
@@ -83,11 +95,15 @@ function Workspace({
   initialStatement,
   authed,
   history,
+  provider,
+  setProvider,
 }: {
   problem: ProblemMeta;
   initialStatement: string;
   authed: boolean;
   history: ChatHistoryMessage[];
+  provider: TutorProvider;
+  setProvider: (p: TutorProvider) => void;
 }) {
   const [mode, setMode] = useState<TutorMode>("UNDERSTAND");
   const [code, setCode] = useState("");
@@ -339,6 +355,8 @@ function Workspace({
               setLanguage={setLanguage}
               trackActivity={trackActivity}
               history={history}
+              provider={provider}
+              setProvider={setProvider}
             />
           ) : (
             <div className="flex h-full flex-col items-center justify-center gap-4 p-8 text-center">
@@ -370,6 +388,8 @@ function ChatPanel({
   setLanguage,
   trackActivity,
   history,
+  provider,
+  setProvider,
 }: {
   problemId: string;
   mode: TutorMode;
@@ -377,6 +397,8 @@ function ChatPanel({
   setLanguage: (code: string) => void;
   trackActivity: (message: string) => void;
   history: ChatHistoryMessage[];
+  provider: TutorProvider;
+  setProvider: (p: TutorProvider) => void;
 }) {
   const { appendMessage } = useCopilotChat();
 
@@ -604,6 +626,22 @@ function ChatPanel({
               <option key={l.code} value={l.code}>
                 {l.native}
                 {l.code === "en-IN" ? "" : ` · ${l.label}`}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="flex items-center gap-1.5 text-xs text-neutral-400">
+          <span>🤖</span>
+          <select
+            value={provider}
+            onChange={(e) => setProvider(e.target.value as TutorProvider)}
+            title="Choose which AI model answers"
+            className="rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1 text-xs text-neutral-200 outline-none focus:border-indigo-500"
+          >
+            {PROVIDERS.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.label}
               </option>
             ))}
           </select>
