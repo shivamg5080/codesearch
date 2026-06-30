@@ -262,8 +262,10 @@ export async function getLearnerDashboard(
     },
   ];
 
-  // --- Difficulty mix (of solved problems with a known difficulty) ---
-  const diffs = solved
+  // --- Difficulty mix (of every problem the learner has engaged with that has
+  // a known difficulty — solved, attempting or bookmarked — so it shows up as
+  // soon as practice starts, not only after the first solve) ---
+  const diffs = statuses
     .map((s) => s.problem.difficultyNormalized)
     .filter((d): d is number => d != null);
   const easy = diffs.filter((d) => d <= 3).length;
