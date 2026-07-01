@@ -16,6 +16,7 @@
     "ingest:cc": "tsx scripts/ingest-codechef.ts",
     "ingest:lc": "tsx scripts/ingest-leetcode.ts",
     "ingest:cses": "tsx scripts/ingest-cses.ts",
+    "seed:demo": "tsx scripts/seed-demo.ts",
     "agent:dev": "langgraphjs dev --port 2024 --no-browser",
     "dev:all": "concurrently -n next,agent -c cyan,magenta \"next dev\" \"npm run agent:dev\""
   },
