@@ -88,11 +88,16 @@ export function ChatPanel({
     prevLoadingRef.current = isLoading;
     if (!finished) return;
 
-    const last = [...visibleMessages]
+    // visibleMessages can be undefined (and its entries plain objects) while
+    // the runtime connection is still settling — guard, don't trust the types.
+    const last = [...(visibleMessages ?? [])]
       .reverse()
       .find(
         (m): m is TextMessage =>
-          m.isTextMessage() && m.role === Role.Assistant && !!m.content.trim(),
+          typeof m?.isTextMessage === "function" &&
+          m.isTextMessage() &&
+          m.role === Role.Assistant &&
+          !!m.content.trim(),
       );
     if (!last || last.id === lastReplyRef.current?.id) return;
 
