@@ -23,6 +23,7 @@ import {
   END,
   START,
 } from "@langchain/langgraph";
+import { PEDAGOGY, MODE_INSTRUCTIONS, type TutorMode } from "../src/prompts";
 
 interface ProblemMeta {
   id: string;
@@ -32,8 +33,6 @@ interface ProblemMeta {
   rating?: number | null;
   url: string;
 }
-
-type TutorMode = "UNDERSTAND" | "HINT" | "REVIEW" | "TEACH" | "QUIZ";
 
 // Tool the model calls to push progress (hint level + understanding notes) into
 // the shared state. predict_state streams these args into the UI live.
@@ -81,43 +80,6 @@ export const TutorStateAnnotation = Annotation.Root({
 });
 export type TutorState = typeof TutorStateAnnotation.State;
 
-const BASE_PEDAGOGY = `You are CodeSearch Tutor, an expert competitive-programming and DSA mentor.
-Your job is to make the learner *think*, not to hand them answers.
-
-CORE RULES (every mode):
-1. STRICT HINT-GATING. Do NOT reveal a full solution or complete code unless the
-   user has explicitly and clearly asked for the full solution at least TWICE.
-   On the first such request, give one more targeted hint and ask if they're
-   sure they want the complete solution. Only on a second explicit request give it.
-2. Progressive hints. Smallest useful nudge first; escalate only when asked.
-   L1=restate/observe, L2=which technique/pattern, L3=high-level approach,
-   L4=pseudo-code, L5=full solution (gated as above).
-3. Whenever you give a hint or surface an insight, call the update_progress tool
-   with the new highest hintLevel and the full keyPoints list.
-4. Be Socratic — prefer a guiding question over stating the next step.
-5. Never fabricate constraints or sample I/O. Render math in LaTeX, code in
-   fenced blocks. Keep responses concise and focused on this one problem.`;
-
-const MODE_INSTRUCTIONS: Record<TutorMode, string> = {
-  UNDERSTAND:
-    "MODE: UNDERSTAND. Help them fully grasp the problem — restate it plainly, " +
-    "clarify constraints, surface tricky edge cases, check understanding. Do " +
-    "NOT discuss the solution approach yet unless asked.",
-  HINT:
-    "MODE: HINT. Give exactly ONE hint at the smallest level that moves them " +
-    "forward, then stop and ask if they want to go further. Never jump levels.",
-  REVIEW:
-    "MODE: REVIEW MY CODE. Read the learner's code in shared state. Find bugs, " +
-    "state time/space complexity, and edge cases. Explain WHY each issue matters " +
-    "and guide them to the fix rather than rewriting it all — unless they ask.",
-  TEACH:
-    "MODE: TEACH THE PATTERN. Abstract the underlying technique (DP, two-pointer, " +
-    "graph, etc.), explain when it applies, and suggest 2-3 similar problems.",
-  QUIZ:
-    "MODE: QUIZ ME. Ask short questions to check understanding, one at a time, " +
-    "giving feedback on each answer before the next.",
-};
-
 function buildSystemPrompt(state: TutorState): string {
   const p = state.problem;
   const mode = (state.mode ?? "UNDERSTAND") as TutorMode;
@@ -144,7 +106,7 @@ function buildSystemPrompt(state: TutorState): string {
       `paste the statement (they have it open on the judge via the link). You may ` +
       `still discuss the likely techniques from the tags while you wait.`;
 
-  return `${BASE_PEDAGOGY}\n\n${MODE_INSTRUCTIONS[mode]}\n\n--- CURRENT PROBLEM ---\n${meta}${statement}\n\nProgress so far — hintLevel: ${state.hintLevel ?? 0}.${code}`;
+  return `${PEDAGOGY}\n\n${MODE_INSTRUCTIONS[mode]}\n\n--- CURRENT PROBLEM ---\n${meta}${statement}\n\nProgress so far — hintLevel: ${state.hintLevel ?? 0}.${code}`;
 }
 
 async function startFlow(

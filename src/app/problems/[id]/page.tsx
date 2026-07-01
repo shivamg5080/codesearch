@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getProblemWithStatement } from "@/lib/problems";
 import { getUserStatus, getConversation } from "@/lib/progress";
-import { TutorWorkspace } from "@/components/tutor-workspace";
+import { TutorWorkspace } from "@/components/tutor/tutor-workspace";
 import { AuthButton } from "@/components/auth-button";
 import { ProblemStatusControls } from "@/components/problem-status-controls";
 import { auth } from "@/auth";

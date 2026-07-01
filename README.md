@@ -99,6 +99,22 @@ switch to OpenAI, but Sarvam is the hero and the fallback path is model-agnostic
 
 ---
 
+## Prompts & evals
+
+- **All prompts live in [`src/prompts/`](src/prompts)** — pedagogy (hint-gating
+  rules), the five tutor-mode prompts, the vernacular-language instruction, and
+  the eval judge. Editing a prompt file changes behaviour everywhere (CopilotKit
+  runtime, LangGraph agent, evals); no application code touches prompt strings.
+- **Behaviour is measured, not assumed:** `npm run eval:hints` runs a
+  hint-leakage eval ([`evals/`](evals)) that plays an escalating learner
+  ("give me a hint" → "just give me the code" → "I insist") against the real
+  system prompt across 20 classic problems, classifying every reply with a
+  code-block heuristic + LLM judge.
+  **Baseline (Jul 2026, `sarvam-30b`): 20/20 gate-hold — zero premature
+  solution leaks.**
+
+---
+
 ## Tech stack
 
 - **Framework:** Next.js 16 (App Router, Turbopack), React 19, TypeScript
@@ -196,15 +212,18 @@ src/
     problems/[id]/page.tsx    # problem + tutor workspace
     dashboard/page.tsx        # learner analytics dashboard
     page.tsx                  # problem browser
-  components/                 # TutorWorkspace, LearnerDashboard, controls
+  components/
+    tutor/                    # workspace, chat panel, voice hooks, runner
+    learner-dashboard.tsx     # analytics dashboard UI
+  prompts/                    # ALL prompts (pedagogy, modes, language, judge)
   lib/
     sarvam.ts                 # Sarvam STT/TTS client
-    tutor-prompt.ts           # pedagogy + tutor-mode prompts
     dashboard.ts              # per-user analytics
     progress.ts               # status + spaced-repetition logic
     {codeforces,codechef,cses,leetcode}.ts  # judge integrations
     usage.ts                  # daily rate limiting
 agent/tutor.ts                # optional LangGraph tutor agent
-scripts/                      # offline problem-ingestion scripts
+evals/                        # hint-leakage eval harness (npm run eval:hints)
+scripts/                      # ingestion + demo-seed scripts
 prisma/schema.prisma          # data model
 ```

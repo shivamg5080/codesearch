@@ -43,3 +43,6 @@ next-env.d.ts
 # LangGraph API
 .langgraph_api
 .env.deploy
+
+# eval transcripts (local artifacts)
+evals/results/
