@@ -158,7 +158,7 @@ function Workspace({
   };
 
   return (
-    <div className="grid h-[calc(100vh-49px)] grid-cols-1 lg:grid-cols-[1.1fr_1fr]">
+    <div className="grid h-[calc(100vh-49px)] grid-cols-1 bg-[#0b0c10] text-[#e8e9ee] lg:grid-cols-[1.05fr_1fr]">
       {/* Left: problem + workspace */}
       <ProblemPanel
         problem={problem}
@@ -176,13 +176,19 @@ function Workspace({
         authed={authed}
       />
 
-      {/* Right: the AI tutor */}
-      <div className="flex min-h-0 flex-col bg-neutral-900/30">
-        <div className="border-b border-neutral-800 px-5 py-3">
-          <h2 className="font-semibold">CodeSearch Tutor</h2>
-          <p className="text-xs text-neutral-500">
-            Hints, not spoilers — it won’t hand over the full solution unless you really insist.
-          </p>
+      {/* Right: the tutor room */}
+      <div className="flex min-h-0 flex-col bg-[#14151c]">
+        <div className="flex items-start gap-3 px-5 pb-3 pt-5">
+          <span className="animate-presence mt-[5px] h-3 w-3 flex-none rounded-full bg-[#6d7cff] shadow-[0_0_10px_2px_rgba(109,124,255,0.45)]" />
+          <div className="flex flex-col gap-[3px]">
+            <h2 className="text-base font-semibold text-[#e8e9ee]">CodeSearch Tutor</h2>
+            <p className="text-xs text-[#8b8e98]">
+              Hints, not spoilers — it won’t hand over the full solution unless you insist.
+            </p>
+          </div>
+          <span className="ml-auto mt-1 font-mono text-[10px] text-[#6b6e79]">
+            voice by Sarvam AI
+          </span>
         </div>
         <div className="min-h-0 flex-1">
           {authed ? (
@@ -198,12 +204,12 @@ function Workspace({
             />
           ) : (
             <div className="flex h-full flex-col items-center justify-center gap-4 p-8 text-center">
-              <p className="max-w-xs text-neutral-400">
+              <p className="max-w-xs text-[#8b8e98]">
                 Sign in to chat with the tutor and save your progress.
               </p>
               <a
                 href={`/signin?callbackUrl=/problems/${problem.id}`}
-                className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500"
+                className="rounded-lg bg-[#6d7cff] px-4 py-2 text-sm font-medium text-[#0b0c10] hover:bg-[#8490ff]"
               >
                 Sign in to start
               </a>

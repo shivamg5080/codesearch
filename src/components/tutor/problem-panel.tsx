@@ -1,15 +1,16 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import type { TutorMode } from "@/prompts";
-import { RunPanel } from "./run-panel";
+import { CodePanel } from "./code-panel";
 import type { ProblemMeta } from "./tutor-workspace";
 
-const MODES: { id: TutorMode; label: string; hint: string }[] = [
-  { id: "UNDERSTAND", label: "Understand", hint: "Grasp the problem" },
-  { id: "HINT", label: "Hint", hint: "One nudge at a time" },
-  { id: "REVIEW", label: "Review code", hint: "Find bugs & complexity" },
-  { id: "TEACH", label: "Teach pattern", hint: "Learn the technique" },
-  { id: "QUIZ", label: "Quiz me", hint: "Check understanding" },
+const MODES: { id: TutorMode; label: string; sub: string }[] = [
+  { id: "UNDERSTAND", label: "Understand", sub: "unpack the ask" },
+  { id: "HINT", label: "Hint", sub: "smallest useful nudge" },
+  { id: "REVIEW", label: "Review code", sub: "critique my attempt" },
+  { id: "TEACH", label: "Teach pattern", sub: "generalize the trick" },
+  { id: "QUIZ", label: "Quiz me", sub: "check my grasp" },
 ];
 
 const SOURCE_LABEL: Record<string, string> = {
@@ -19,19 +20,81 @@ const SOURCE_LABEL: Record<string, string> = {
   LEETCODE: "LeetCode",
 };
 
-const HINT_LABELS = [
-  "No hints yet",
-  "L1 · Observation",
-  "L2 · Technique",
-  "L3 · Approach",
-  "L4 · Pseudo-code",
-  "L5 · Full solution",
-];
+const HINT_NAMES = ["Observation", "Technique", "Approach", "Pseudo-code", "Full solution"];
 
 /**
- * Left column of the tutor workspace: problem header, statement editor,
- * mode selector, hint-level meter, key takeaways, code editor and runner.
- * Purely presentational — all state lives in the parent Workspace.
+ * The signature element: five gated hint levels. Amber fills what the tutor has
+ * revealed; L5 stays dashed + locked until the learner insists twice.
+ */
+function HintLadder({ hintLevel }: { hintLevel: number }) {
+  const prevRef = useRef(hintLevel);
+  const [sweepIdx, setSweepIdx] = useState(-1);
+  useEffect(() => {
+    if (hintLevel > prevRef.current) {
+      setSweepIdx(hintLevel - 1);
+      const t = setTimeout(() => setSweepIdx(-1), 800);
+      prevRef.current = hintLevel;
+      return () => clearTimeout(t);
+    }
+    prevRef.current = hintLevel;
+  }, [hintLevel]);
+
+  const label =
+    hintLevel === 0 ? "no hints yet" : `L${hintLevel} · ${HINT_NAMES[hintLevel - 1]} revealed`;
+
+  return (
+    <div className="flex flex-col gap-2.5">
+      <div className="flex items-baseline gap-2.5">
+        <span className="font-mono text-[10.5px] tracking-[0.14em] text-[#8b8e98]">
+          HINT LADDER
+        </span>
+        <span className="flex-1" />
+        <span className="font-mono text-[11.5px] text-[#f5b942]">{label}</span>
+      </div>
+      <div className="flex items-stretch gap-1.5">
+        {HINT_NAMES.map((name, i) => {
+          const filled = i < hintLevel;
+          const isLock = i === 4 && hintLevel < 5;
+          return (
+            <div key={name} className="flex min-w-0 flex-1 flex-col gap-[7px]">
+              {filled ? (
+                <div
+                  className={`h-[15px] rounded bg-gradient-to-b from-[#ffd57a] to-[#f5b942] shadow-[0_0_14px_1px_rgba(245,185,66,0.22)] ${
+                    i === sweepIdx ? "animate-hint-sweep" : ""
+                  }`}
+                />
+              ) : isLock ? (
+                <div className="flex h-[15px] items-center justify-center rounded border border-dashed border-white/15 bg-white/[0.02]">
+                  <span className="text-[8.5px] leading-none text-[#8b8e98]">🔒</span>
+                </div>
+              ) : (
+                <div className="h-[15px] rounded border border-white/15 bg-white/[0.02]" />
+              )}
+              <div
+                className={`truncate font-mono text-[10px] ${
+                  filled ? "text-[#f5b942]" : "text-[#8b8e98]"
+                }`}
+              >
+                <span className="font-bold">L{i + 1}</span> {name}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <div className="flex">
+        <span className="flex-1" />
+        <span className="font-mono text-[10px] text-[#6b6e79]">
+          L5 unlocks only if you insist twice
+        </span>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Left column ("workbench"): problem header, statement document card, the hint
+ * ladder, session-intent mode cards, and the code panel. All state lives in the
+ * parent Workspace.
  */
 export function ProblemPanel({
   problem,
@@ -62,117 +125,133 @@ export function ProblemPanel({
   setCode: (c: string) => void;
   authed: boolean;
 }) {
+  const hasStatement = !!statement.trim();
+
   return (
-    <div className="overflow-y-auto border-r border-neutral-800 p-6">
-      <div className="mb-4 flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold">{problem.title}</h1>
-          <div className="mt-2 flex flex-wrap items-center gap-2 text-sm">
-            <span className="rounded bg-neutral-800 px-2 py-0.5 text-neutral-300">
-              {SOURCE_LABEL[problem.source] ?? problem.source}
+    <div className="flex flex-col gap-5 overflow-y-auto border-r border-white/[0.08] bg-[#0b0c10] p-6">
+      {/* Problem header */}
+      <div className="flex flex-col gap-3">
+        <h1 className="text-[44px] font-extrabold leading-[1.05] tracking-[-0.03em] text-[#e8e9ee]">
+          {problem.title}
+        </h1>
+        <div className="flex flex-wrap items-center gap-2 font-mono text-[11.5px]">
+          <span className="rounded border border-white/[0.12] px-2 py-[3px] text-[#b0b3ba]">
+            {SOURCE_LABEL[problem.source] ?? problem.source}
+          </span>
+          {problem.rating != null && (
+            <span className="rounded border border-[#b0b3ba]/30 bg-[#b0b3ba]/10 px-2 py-[3px] text-[#b0b3ba]">
+              Rating {problem.rating}
             </span>
-            {problem.rating != null && (
-              <span className="rounded bg-indigo-500/15 px-2 py-0.5 font-semibold text-indigo-300">
-                Rating {problem.rating}
-              </span>
-            )}
-            {problem.tags.slice(0, 6).map((t) => (
-              <span key={t} className="rounded bg-neutral-800 px-2 py-0.5 text-neutral-400">
-                {t}
-              </span>
-            ))}
-          </div>
+          )}
+          {problem.tags.slice(0, 6).map((t) => (
+            <span key={t} className="rounded border border-white/[0.08] px-2 py-[3px] text-[#8b8e98]">
+              {t}
+            </span>
+          ))}
+          <span className="flex-1" />
+          <a
+            href={problem.url}
+            target="_blank"
+            rel="noreferrer"
+            className="px-1 py-[3px] text-[#8b8e98] hover:text-[#e8e9ee] hover:underline"
+          >
+            Open on judge ↗
+          </a>
         </div>
-        <a
-          href={problem.url}
-          target="_blank"
-          rel="noreferrer"
-          className="shrink-0 rounded-lg border border-neutral-700 px-3 py-1.5 text-sm hover:border-indigo-500 hover:text-indigo-300"
-        >
-          Open on judge ↗
-        </a>
       </div>
 
-      <p className="mb-4 text-sm text-neutral-400">
-        {statement.trim()
-          ? "Statement loaded ✓ — pick a mode and start chatting with the tutor on the right."
-          : "Open the statement on the judge above and paste it below so the tutor knows the exact problem (cached after the first time), then pick a mode and chat."}
-      </p>
-
-      {/* Problem statement — paste once, cached to DB, read by the tutor */}
-      <div className="mb-5">
+      {/* Statement document card */}
+      <div className="overflow-hidden rounded-lg border border-white/[0.08] bg-[#0f1015]">
         <button
           onClick={() => setShowStatement((s) => !s)}
-          className="mb-1.5 flex items-center gap-1.5 text-sm text-neutral-400 hover:text-neutral-200"
+          className="flex w-full items-center gap-2.5 px-4 pb-2.5 pt-3.5 text-left"
         >
-          <span className={`transition ${showStatement ? "rotate-90" : ""}`}>▸</span>
-          Problem statement
-          {statement.trim() ? (
-            <span className="rounded bg-emerald-500/15 px-1.5 py-0.5 text-xs text-emerald-300">
+          <span className="font-mono text-[10.5px] tracking-[0.14em] text-[#8b8e98]">
+            PROBLEM STATEMENT
+          </span>
+          {hasStatement ? (
+            <span className="rounded border border-[#34d399]/30 bg-[#34d399]/10 px-[7px] py-[2px] font-mono text-[10px] text-[#34d399]">
               provided
             </span>
           ) : (
-            <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-xs text-amber-300">
+            <span className="rounded border border-[#f5b942]/30 bg-[#f5b942]/10 px-[7px] py-[2px] font-mono text-[10px] text-[#f5b942]">
               paste to improve answers
             </span>
           )}
+          <span className="flex-1" />
+          <span className="font-mono text-[11px] text-[#8b8e98]">
+            {showStatement ? "collapse ▴" : "expand ▾"}
+          </span>
         </button>
-        {showStatement && (
-          <textarea
-            value={statement}
-            onChange={(e) => setStatement(e.target.value)}
-            onBlur={(e) => saveStatement(e.target.value)}
-            placeholder="Paste the full problem statement here…"
-            spellCheck={false}
-            className="h-40 w-full resize-none rounded-xl border border-neutral-800 bg-neutral-900 p-3 text-sm leading-relaxed text-neutral-200 outline-none focus:border-indigo-500"
-          />
+
+        {showStatement ? (
+          <div className="px-4 pb-4">
+            <textarea
+              value={statement}
+              onChange={(e) => setStatement(e.target.value)}
+              onBlur={(e) => saveStatement(e.target.value)}
+              placeholder="Paste the full problem statement here…"
+              spellCheck={false}
+              className="h-48 w-full resize-y rounded-md border border-white/10 bg-[#0b0c10] p-3 text-[13.5px] leading-relaxed text-[#c6c8d0] outline-none focus:border-[#6d7cff]"
+            />
+          </div>
+        ) : hasStatement ? (
+          <div className="relative max-h-16 overflow-hidden px-4 pb-3">
+            <p className="m-0 max-w-[62ch] text-[13.5px] leading-[1.55] text-[#b8bac2]">
+              {statement.slice(0, 400)}
+            </p>
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-gradient-to-b from-transparent to-[#0f1015]" />
+          </div>
+        ) : (
+          <p className="px-4 pb-3.5 text-[12.5px] text-[#6b6e79]">
+            Open the statement on the judge and paste it here — cached for everyone after
+            the first time.
+          </p>
         )}
       </div>
 
-      {/* Mode selector */}
-      <div className="mb-6 flex flex-wrap gap-2">
-        {MODES.map((m) => (
-          <button
-            key={m.id}
-            onClick={() => setMode(m.id)}
-            title={m.hint}
-            className={`rounded-lg border px-3 py-1.5 text-sm transition ${
-              mode === m.id
-                ? "border-indigo-500 bg-indigo-500/15 text-indigo-200"
-                : "border-neutral-800 text-neutral-300 hover:border-neutral-600"
-            }`}
-          >
-            {m.label}
-          </button>
-        ))}
-      </div>
+      {/* Hint ladder — the page's signature */}
+      <HintLadder hintLevel={hintLevel} />
 
-      {/* Hint-level meter — updated by the tutor via update_progress */}
-      <div className="mb-6">
-        <div className="mb-1.5 flex items-center justify-between text-sm">
-          <span className="text-neutral-400">Hint level</span>
-          <span className="font-medium text-indigo-300">{HINT_LABELS[hintLevel]}</span>
-        </div>
-        <div className="flex gap-1">
-          {[1, 2, 3, 4, 5].map((l) => (
-            <div
-              key={l}
-              className={`h-2 flex-1 rounded-full ${
-                l <= hintLevel ? "bg-indigo-500" : "bg-neutral-800"
+      {/* Session intents */}
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-5">
+        {MODES.map((m) => {
+          const active = mode === m.id;
+          return (
+            <button
+              key={m.id}
+              onClick={() => setMode(m.id)}
+              className={`flex flex-col items-start gap-1 rounded-lg border px-3 py-[11px] text-left transition ${
+                active
+                  ? "border-[#6d7cff] bg-[#6d7cff]/10"
+                  : "border-white/[0.08] bg-[#0f1015] hover:border-white/20 hover:bg-[#12131a]"
               }`}
-            />
-          ))}
-        </div>
+            >
+              <span
+                className={`text-[13px] font-semibold ${active ? "text-[#e8e9ee]" : "text-[#b8bac2]"}`}
+              >
+                {m.label}
+              </span>
+              <span
+                className={`font-mono text-[10px] ${active ? "text-[#aab2ff]" : "text-[#8b8e98]"}`}
+              >
+                {m.sub}
+              </span>
+            </button>
+          );
+        })}
       </div>
 
       {/* Key takeaways — populated by the tutor */}
       {keyPoints.length > 0 && (
-        <div className="mb-6 rounded-xl border border-neutral-800 bg-neutral-900/50 p-4">
-          <h3 className="mb-2 text-sm font-semibold text-neutral-300">Key takeaways</h3>
+        <div className="rounded-lg border border-white/[0.08] bg-[#0f1015] p-4">
+          <div className="mb-2 font-mono text-[10.5px] tracking-[0.14em] text-[#8b8e98]">
+            KEY TAKEAWAYS
+          </div>
           <ul className="space-y-1.5">
             {keyPoints.map((p, i) => (
-              <li key={i} className="flex gap-2 text-sm text-neutral-400">
-                <span className="text-indigo-400">•</span>
+              <li key={i} className="flex gap-2 text-[13px] text-[#b8bac2]">
+                <span className="text-[#6d7cff]">•</span>
                 <span>{p}</span>
               </li>
             ))}
@@ -180,25 +259,7 @@ export function ProblemPanel({
         </div>
       )}
 
-      {/* Code editor — read by the tutor in Review mode, and runnable below */}
-      <div>
-        <label className="mb-1.5 flex items-center gap-2 text-sm text-neutral-400">
-          Your code
-          <span className="rounded bg-sky-500/15 px-1.5 py-0.5 text-xs font-semibold text-sky-300">
-            C++
-          </span>
-          <span className="text-neutral-600">(review with the tutor, or run it below)</span>
-        </label>
-        <textarea
-          value={code}
-          onChange={(e) => setCode(e.target.value)}
-          placeholder="// paste or write your C++ attempt here…"
-          spellCheck={false}
-          className="h-64 w-full resize-none rounded-xl border border-neutral-800 bg-neutral-900 p-4 font-mono text-sm leading-relaxed text-neutral-200 outline-none focus:border-indigo-500"
-        />
-      </div>
-
-      <RunPanel code={code} authed={authed} source={problem.source} />
+      <CodePanel code={code} setCode={setCode} authed={authed} source={problem.source} />
     </div>
   );
 }

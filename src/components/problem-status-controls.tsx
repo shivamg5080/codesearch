@@ -5,9 +5,21 @@ import { useState } from "react";
 type Status = "SOLVED" | "ATTEMPTING" | "BOOKMARKED";
 
 const OPTIONS: { id: Status; label: string; on: string }[] = [
-  { id: "SOLVED", label: "✓ Solved", on: "border-emerald-500 bg-emerald-500/15 text-emerald-300" },
-  { id: "ATTEMPTING", label: "Attempting", on: "border-amber-500 bg-amber-500/15 text-amber-300" },
-  { id: "BOOKMARKED", label: "☆ Bookmark", on: "border-indigo-500 bg-indigo-500/15 text-indigo-300" },
+  {
+    id: "SOLVED",
+    label: "✓ Solved",
+    on: "border-[#34d399]/40 bg-[#34d399]/10 text-[#34d399]",
+  },
+  {
+    id: "ATTEMPTING",
+    label: "Attempting",
+    on: "border-[#f5b942]/40 bg-[#f5b942]/10 text-[#f5b942]",
+  },
+  {
+    id: "BOOKMARKED",
+    label: "☆ Bookmark",
+    on: "border-[#6d7cff]/50 bg-[#6d7cff]/10 text-[#aab2ff]",
+  },
 ];
 
 export function ProblemStatusControls({
@@ -35,7 +47,7 @@ export function ProblemStatusControls({
   };
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className="flex items-center gap-[2px] rounded-lg border border-white/10 bg-[#0e0f14] p-[2px]">
       {OPTIONS.map((o) => {
         const active = status === o.id;
         return (
@@ -43,8 +55,10 @@ export function ProblemStatusControls({
             key={o.id}
             disabled={saving}
             onClick={() => update(active ? null : o.id)}
-            className={`rounded-lg border px-3 py-1.5 text-sm transition disabled:opacity-60 ${
-              active ? o.on : "border-neutral-700 text-neutral-300 hover:border-neutral-500"
+            className={`rounded-md border px-3 py-1 font-mono text-[11.5px] transition disabled:opacity-60 ${
+              active
+                ? o.on
+                : "border-transparent text-[#8b8e98] hover:bg-white/5 hover:text-[#e8e9ee]"
             }`}
           >
             {o.label}

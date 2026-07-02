@@ -1,10 +1,23 @@
 "use client";
 
 import { useCopilotChat } from "@copilotkit/react-core";
-import { CopilotChat } from "@copilotkit/react-ui";
+import {
+  CopilotChat,
+  Markdown,
+  type AssistantMessageProps,
+  type UserMessageProps,
+  type InputProps,
+} from "@copilotkit/react-ui";
 import { TextMessage, Role } from "@copilotkit/runtime-client-gql";
 import "@copilotkit/react-ui/styles.css";
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { buildInstructions, type TutorMode } from "@/prompts";
 import { TUTOR_LANGUAGES } from "@/lib/languages";
 import { useVoice } from "./use-voice";
@@ -15,13 +28,211 @@ const PROVIDERS: { id: TutorProvider; label: string }[] = [
   { id: "openai", label: "OpenAI" },
 ];
 
+const STARTERS = [
+  "What is this problem really asking?",
+  "Nudge me — smallest hint",
+  "क्या मैं हिंदी में पूछ सकता हूँ?",
+];
+
+/* ------------------------------------------------------------------ */
+/* Custom CopilotKit subcomponents (module-level so they stay stable). */
+/* ------------------------------------------------------------------ */
+
+/** AG-UI message content is string | content-part[]; flatten to plain text. */
+function messageText(content: unknown): string {
+  if (typeof content === "string") return content;
+  if (Array.isArray(content)) {
+    return content
+      .map((p) =>
+        p && typeof p === "object" && "text" in p ? String((p as { text?: unknown }).text ?? "") : "",
+      )
+      .join("");
+  }
+  return "";
+}
+
+function TutorMessage({ message, isLoading, isCurrentMessage }: AssistantMessageProps) {
+  const content = messageText(message?.content);
+  const thinking = !content && !!isLoading && !!isCurrentMessage;
+  if (!content && !thinking) return null;
+  return (
+    <div className="mb-3 flex max-w-[88%] flex-col gap-2 self-start rounded-xl border border-white/[0.06] border-l-2 border-l-[#6d7cff] bg-[#191b24] px-[15px] py-3">
+      <div className="flex items-center gap-2">
+        <span className="h-[7px] w-[7px] rounded-full bg-[#6d7cff]" />
+        <span className="font-mono text-[10px] text-[#8b8e98]">TUTOR</span>
+      </div>
+      {thinking ? (
+        <span className="font-mono text-[12px] text-[#8b8e98]">thinking…</span>
+      ) : (
+        <div className="tutor-markdown text-[13.5px] leading-relaxed text-[#d7d9e0]">
+          <Markdown content={content} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function LearnerMessage({ message }: UserMessageProps) {
+  const content = messageText(message?.content);
+  if (!content) return null;
+  return (
+    <div className="mb-3 max-w-[78%] self-end rounded-xl border border-white/[0.08] bg-[#0e0f14] px-3.5 py-2.5 text-[13.5px] leading-[1.55] text-[#d7d9e0]">
+      {content}
+    </div>
+  );
+}
+
+/* The composer needs live chat-panel state; a context keeps the component
+   identity stable across renders (an inline component would remount and drop
+   the draft text on every keystroke). */
+interface ComposerState {
+  language: string;
+  setLanguage: (code: string) => void;
+  provider: TutorProvider;
+  setProvider: (p: TutorProvider) => void;
+  speakReplies: boolean;
+  toggleSpeakReplies: () => void;
+  recording: boolean;
+  voiceBusy: boolean;
+  voiceError: string | null;
+  startRecording: () => void;
+  stopRecording: () => void;
+  onUserMessage: (text: string) => void;
+}
+const ComposerContext = createContext<ComposerState | null>(null);
+
+function Composer({ inProgress, onSend, onStop }: InputProps) {
+  const ctx = useContext(ComposerContext);
+  const [text, setText] = useState("");
+  if (!ctx) return null;
+
+  const send = () => {
+    const t = text.trim();
+    if (!t || inProgress) return;
+    setText("");
+    ctx.onUserMessage(t);
+    void onSend(t);
+  };
+
+  const quiet =
+    "h-8 rounded-md bg-transparent px-2 font-mono text-[11px] text-[#8b8e98] transition hover:bg-white/[0.06] hover:text-[#e8e9ee]";
+
+  return (
+    <div className="flex flex-col gap-[7px] px-5 pb-4 pt-3">
+      {ctx.voiceError && (
+        <span className="px-2 font-mono text-[10.5px] text-[#f87171]">{ctx.voiceError}</span>
+      )}
+      <div className="flex flex-col gap-1 rounded-2xl border border-white/[0.12] bg-[#1b1d27] px-3 pb-2 pt-3 focus-within:border-[#6d7cff]">
+        <textarea
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              send();
+            }
+          }}
+          placeholder="Ask the tutor…"
+          rows={Math.min(4, Math.max(1, text.split("\n").length))}
+          className="w-full resize-none bg-transparent px-1 text-[13.5px] leading-relaxed text-[#e8e9ee] outline-none placeholder:text-[#6b6e79]"
+        />
+        <div className="flex items-center gap-1">
+          {/* Language + model, quiet selects (Claude-composer style) */}
+          <div className="relative">
+            <select
+              value={ctx.language}
+              onChange={(e) => ctx.setLanguage(e.target.value)}
+              title="Tutor language"
+              className={`${quiet} cursor-pointer appearance-none pr-5`}
+            >
+              {TUTOR_LANGUAGES.map((l) => (
+                <option key={l.code} value={l.code} className="bg-[#1b1d27]">
+                  {l.native}
+                </option>
+              ))}
+            </select>
+            <span className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 text-[8px] text-[#8b8e98]">
+              ▾
+            </span>
+          </div>
+          <div className="relative">
+            <select
+              value={ctx.provider}
+              onChange={(e) => ctx.setProvider(e.target.value as TutorProvider)}
+              title="Which AI model answers"
+              className={`${quiet} cursor-pointer appearance-none pr-5`}
+            >
+              {PROVIDERS.map((p) => (
+                <option key={p.id} value={p.id} className="bg-[#1b1d27]">
+                  {p.label}
+                </option>
+              ))}
+            </select>
+            <span className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 text-[8px] text-[#8b8e98]">
+              ▾
+            </span>
+          </div>
+          <span className="flex-1" />
+          <button
+            type="button"
+            onClick={ctx.recording ? ctx.stopRecording : ctx.startRecording}
+            disabled={ctx.voiceBusy}
+            title="Speak your question (Sarvam speech-to-text)"
+            className={`flex h-8 items-center gap-1.5 rounded-md px-2.5 font-mono text-[11px] transition disabled:opacity-50 ${
+              ctx.recording
+                ? "bg-[#f87171]/15 text-[#f87171]"
+                : "text-[#8b8e98] hover:bg-white/[0.06] hover:text-[#e8e9ee]"
+            }`}
+          >
+            {ctx.recording ? "⏺ stop" : ctx.voiceBusy ? "…" : "🎤"}
+          </button>
+          <button
+            type="button"
+            onClick={ctx.toggleSpeakReplies}
+            title="Read replies aloud (Sarvam text-to-speech)"
+            className={`flex h-8 items-center gap-1.5 rounded-md px-2.5 font-mono text-[11px] transition ${
+              ctx.speakReplies
+                ? "bg-[#6d7cff]/15 text-[#aab2ff]"
+                : "text-[#8b8e98] hover:bg-white/[0.06] hover:text-[#e8e9ee]"
+            }`}
+          >
+            {ctx.speakReplies ? "🔊" : "🔈"}
+          </button>
+          {inProgress ? (
+            <button
+              type="button"
+              onClick={() => onStop?.()}
+              title="Stop generating"
+              className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-sm text-[#e8e9ee] transition hover:bg-white/20"
+            >
+              ◼
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={send}
+              disabled={!text.trim()}
+              title="Send"
+              className="flex h-9 w-9 items-center justify-center rounded-full bg-[#6d7cff] text-[15px] font-bold text-[#0b0c10] transition hover:bg-[#8490ff] disabled:opacity-40"
+            >
+              ↑
+            </button>
+          )}
+        </div>
+      </div>
+      <div className="text-center font-mono text-[10.5px] text-[#6b6e79]">
+        Ask by text or voice · 11 Indian languages
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+
 /**
- * The tutor chat: CopilotChat + the Sarvam voice bar (language, mic, speak-replies,
- * model picker) + collapsible previous-conversation history.
- *
- * Completed assistant replies are read from CopilotKit's message store (the
- * `isLoading` false-transition marks a finished generation) — they're persisted
- * for reload and optionally spoken via TTS.
+ * The tutor room's chat: previous-conversation drawer, CopilotChat with custom
+ * bubbles, starter chips for the empty state, and the composer (language,
+ * model, mic and speak-replies controls live inside it).
  */
 export function ChatPanel({
   problemId,
@@ -46,14 +257,17 @@ export function ChatPanel({
 
   const [speakReplies, setSpeakReplies] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [hasChatted, setHasChatted] = useState(false);
 
   // Last completed (real) assistant reply — never the static greeting, since
   // capture only runs after a generation finishes.
   const lastReplyRef = useRef<{ id: string; content: string } | null>(null);
 
-  // Mark Attempting + log the learner's message.
   const handleUserMessage = useCallback(
-    (message: string) => trackActivity(message),
+    (message: string) => {
+      setHasChatted(true);
+      trackActivity(message);
+    },
     [trackActivity],
   );
 
@@ -65,7 +279,7 @@ export function ChatPanel({
       await appendMessage(new TextMessage({ content: transcript, role: Role.User }));
     },
   });
-  const { speak } = voice;
+  const { speak, unlockAudio, pauseAudio } = voice;
 
   // Persist an assistant reply so it reloads next time.
   const logAssistantReply = useCallback(
@@ -79,9 +293,8 @@ export function ChatPanel({
     [problemId, mode],
   );
 
-  // --- Capture each completed assistant reply from the message store. ---
-  // When isLoading flips false a generation just finished; the newest assistant
-  // text message is the reply. Persist it, and speak it if enabled.
+  // Capture each completed assistant reply from the message store: when
+  // isLoading flips false a generation just finished. Persist + speak it.
   const prevLoadingRef = useRef(false);
   useEffect(() => {
     const finished = prevLoadingRef.current && !isLoading;
@@ -106,128 +319,101 @@ export function ChatPanel({
     if (speakReplies) void speak(last.content);
   }, [isLoading, visibleMessages, logAssistantReply, speak, speakReplies]);
 
+  const toggleSpeakReplies = useCallback(() => {
+    setSpeakReplies((prev) => {
+      const turningOn = !prev;
+      if (turningOn) {
+        // Unlock autoplay within this user gesture, then speak the most
+        // recent reply right away (future replies reuse the same element).
+        unlockAudio();
+        if (lastReplyRef.current) void speak(lastReplyRef.current.content);
+      } else {
+        pauseAudio();
+      }
+      return turningOn;
+    });
+  }, [unlockAudio, pauseAudio, speak]);
+
+  const sendStarter = (text: string) => {
+    handleUserMessage(text);
+    void appendMessage(new TextMessage({ content: text, role: Role.User }));
+  };
+
+  const composerState: ComposerState = {
+    language,
+    setLanguage,
+    provider,
+    setProvider,
+    speakReplies,
+    toggleSpeakReplies,
+    recording: voice.recording,
+    voiceBusy: voice.voiceBusy,
+    voiceError: voice.voiceError,
+    startRecording: voice.startRecording,
+    stopRecording: voice.stopRecording,
+    onUserMessage: handleUserMessage,
+  };
+
   return (
-    <div className="flex h-full flex-col">
-      {/* Sarvam voice bar */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-neutral-800 px-4 py-2.5">
-        <label className="flex items-center gap-1.5 text-xs text-neutral-400">
-          <span>🌐</span>
-          <select
-            value={language}
-            onChange={(e) => setLanguage(e.target.value)}
-            className="rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1 text-xs text-neutral-200 outline-none focus:border-indigo-500"
-          >
-            {TUTOR_LANGUAGES.map((l) => (
-              <option key={l.code} value={l.code}>
-                {l.native}
-                {l.code === "en-IN" ? "" : ` · ${l.label}`}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label className="flex items-center gap-1.5 text-xs text-neutral-400">
-          <span>🤖</span>
-          <select
-            value={provider}
-            onChange={(e) => setProvider(e.target.value as TutorProvider)}
-            title="Choose which AI model answers"
-            className="rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1 text-xs text-neutral-200 outline-none focus:border-indigo-500"
-          >
-            {PROVIDERS.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.label}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <button
-          type="button"
-          onClick={voice.recording ? voice.stopRecording : voice.startRecording}
-          disabled={voice.voiceBusy}
-          title="Ask by voice (Sarvam speech-to-text)"
-          className={`flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs transition disabled:opacity-50 ${
-            voice.recording
-              ? "border-red-500 bg-red-500/15 text-red-300"
-              : "border-neutral-700 text-neutral-300 hover:border-indigo-500 hover:text-indigo-300"
-          }`}
-        >
-          <span>{voice.recording ? "⏺" : "🎤"}</span>
-          {voice.recording ? "Stop" : voice.voiceBusy ? "…" : "Speak"}
-        </button>
-
-        <button
-          type="button"
-          onClick={() => {
-            const turningOn = !speakReplies;
-            setSpeakReplies(turningOn);
-            if (turningOn) {
-              // Unlock autoplay within this user gesture, then speak the most
-              // recent reply right away (future replies use the same element).
-              voice.unlockAudio();
-              if (lastReplyRef.current) void speak(lastReplyRef.current.content);
-            } else {
-              voice.pauseAudio();
-            }
-          }}
-          title="Read the tutor's replies aloud (Sarvam text-to-speech)"
-          className={`flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs transition ${
-            speakReplies
-              ? "border-indigo-500 bg-indigo-500/15 text-indigo-200"
-              : "border-neutral-700 text-neutral-300 hover:border-indigo-500 hover:text-indigo-300"
-          }`}
-        >
-          <span>{speakReplies ? "🔊" : "🔈"}</span>
-          Speak replies
-        </button>
-
-        {voice.voiceError && <span className="text-xs text-red-400">{voice.voiceError}</span>}
-        <span className="ml-auto text-[10px] text-neutral-600">voice by Sarvam AI</span>
-      </div>
-
-      {/* Previous conversation — reloaded from the DB on revisit. */}
-      {history.length > 0 && (
-        <div className="border-b border-neutral-800 bg-neutral-900/40">
-          <button
-            onClick={() => setShowHistory((s) => !s)}
-            className="flex w-full items-center gap-1.5 px-4 py-2 text-xs text-neutral-400 hover:text-neutral-200"
-          >
-            <span className={`transition ${showHistory ? "rotate-90" : ""}`}>▸</span>
-            Previous conversation ({history.length} message{history.length === 1 ? "" : "s"})
-          </button>
-          {showHistory && (
-            <div className="max-h-72 space-y-2 overflow-y-auto px-4 pb-3">
-              {history.map((m, i) => (
-                <div key={i} className={m.role === "USER" ? "text-right" : "text-left"}>
-                  <span
-                    className={`inline-block max-w-[85%] whitespace-pre-wrap rounded-lg px-3 py-1.5 text-left text-sm ${
-                      m.role === "USER"
-                        ? "bg-neutral-800 text-neutral-100"
-                        : "bg-neutral-900 text-neutral-300"
-                    }`}
-                  >
+    <ComposerContext.Provider value={composerState}>
+      <div className="flex h-full min-h-0 flex-col">
+        {/* Previous conversation drawer */}
+        {history.length > 0 && (
+          <div className="flex-none px-5 pt-3">
+            <button
+              onClick={() => setShowHistory((s) => !s)}
+              className="flex w-full items-center gap-2 rounded-[10px] border border-white/[0.08] bg-[#181a22] px-3.5 py-2 text-left transition hover:border-white/[0.18]"
+            >
+              <span className="font-mono text-[11px] text-[#8b8e98]">
+                Previous conversation ({history.length} message{history.length === 1 ? "" : "s"})
+              </span>
+              <span className="flex-1" />
+              <span className="text-[10px] text-[#8b8e98]">{showHistory ? "▴" : "▾"}</span>
+            </button>
+            {showHistory && (
+              <div className="mt-1.5 flex max-h-64 flex-col gap-2 overflow-y-auto rounded-[10px] border border-white/[0.06] bg-[#171922] px-3.5 py-2.5">
+                {history.map((m, i) => (
+                  <div key={i} className="text-xs leading-normal text-[#8b8e98]">
+                    <span className="font-mono text-[10px] text-[#6b6e79]">
+                      {m.role === "USER" ? "YOU · " : "TUTOR · "}
+                    </span>
                     {m.content}
-                  </span>
-                </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Chat + starter chips */}
+        <div className="tutor-chat relative min-h-0 flex-1">
+          <CopilotChat
+            instructions={buildInstructions(mode)}
+            onSubmitMessage={handleUserMessage}
+            labels={{
+              initial:
+                "Ready when you are. I'll guide you with progressive hints — observations before approaches, never the answer first. Ask in any of 11 Indian languages, by text or voice.",
+            }}
+            AssistantMessage={TutorMessage}
+            UserMessage={LearnerMessage}
+            Input={Composer}
+            className="flex h-full flex-col"
+          />
+          {!hasChatted && (
+            <div className="pointer-events-none absolute inset-x-0 bottom-28 flex flex-col items-center gap-2">
+              {STARTERS.map((s) => (
+                <button
+                  key={s}
+                  onClick={() => sendStarter(s)}
+                  className="pointer-events-auto rounded-full border border-white/[0.12] bg-[#1b1d27] px-4 py-2 text-[12.5px] text-[#c6c8d0] transition hover:border-[#6d7cff] hover:text-[#e8e9ee]"
+                >
+                  {s}
+                </button>
               ))}
             </div>
           )}
         </div>
-      )}
-
-      <div className="min-h-0 flex-1">
-        <CopilotChat
-          instructions={buildInstructions(mode)}
-          onSubmitMessage={handleUserMessage}
-          labels={{
-            initial:
-              "Hi! Ask me anything about this problem — I'll guide you with hints, not spoilers. You can also ask by voice in your language.",
-            placeholder: "Ask the tutor…",
-          }}
-          className="h-full"
-        />
       </div>
-    </div>
+    </ComposerContext.Provider>
   );
 }
