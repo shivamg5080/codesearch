@@ -97,7 +97,6 @@ interface ComposerState {
   voiceError: string | null;
   startRecording: () => void;
   stopRecording: () => void;
-  onUserMessage: (text: string) => void;
 }
 const ComposerContext = createContext<ComposerState | null>(null);
 
@@ -106,11 +105,12 @@ function Composer({ inProgress, onSend, onStop }: InputProps) {
   const [text, setText] = useState("");
   if (!ctx) return null;
 
+  // onSend runs CopilotChat's onSubmitMessage (activity tracking) itself —
+  // don't log here or the message gets recorded twice.
   const send = () => {
     const t = text.trim();
     if (!t || inProgress) return;
     setText("");
-    ctx.onUserMessage(t);
     void onSend(t);
   };
 
@@ -271,11 +271,11 @@ export function ChatPanel({
     [trackActivity],
   );
 
+  // appendMessage triggers onSubmitMessage internally — no manual tracking here.
   const voice = useVoice({
     language,
     onDetectLanguage: setLanguage,
     onTranscript: async (transcript) => {
-      handleUserMessage(transcript);
       await appendMessage(new TextMessage({ content: transcript, role: Role.User }));
     },
   });
@@ -335,7 +335,6 @@ export function ChatPanel({
   }, [unlockAudio, pauseAudio, speak]);
 
   const sendStarter = (text: string) => {
-    handleUserMessage(text);
     void appendMessage(new TextMessage({ content: text, role: Role.User }));
   };
 
@@ -351,7 +350,6 @@ export function ChatPanel({
     voiceError: voice.voiceError,
     startRecording: voice.startRecording,
     stopRecording: voice.stopRecording,
-    onUserMessage: handleUserMessage,
   };
 
   return (
