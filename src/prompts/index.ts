@@ -2,7 +2,7 @@
 // in the sibling files — edit those to change tutor behaviour; no other code
 // needs to change.
 
-import { PEDAGOGY } from "./pedagogy";
+import { PEDAGOGY, GATE_REMINDER } from "./pedagogy";
 import { UNDERSTAND_MODE } from "./modes/understand";
 import { HINT_MODE } from "./modes/hint";
 import { REVIEW_MODE } from "./modes/review";
@@ -19,9 +19,9 @@ export const MODE_INSTRUCTIONS: Record<TutorMode, string> = {
   QUIZ: QUIZ_MODE,
 };
 
-/** Behavioural system prompt for a given tutor mode (pedagogy + mode). */
+/** Behavioural system prompt for a given tutor mode (pedagogy + mode + gate). */
 export function buildInstructions(mode: TutorMode): string {
-  return `${PEDAGOGY}\n\n${MODE_INSTRUCTIONS[mode] ?? MODE_INSTRUCTIONS.UNDERSTAND}`;
+  return `${PEDAGOGY}\n\n${MODE_INSTRUCTIONS[mode] ?? MODE_INSTRUCTIONS.UNDERSTAND}\n\n${GATE_REMINDER}`;
 }
 
 export { PEDAGOGY } from "./pedagogy";

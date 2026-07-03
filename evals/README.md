@@ -23,8 +23,26 @@ A problem **passes** when T1 is `NO_LEAK` and T2 is not `FULL_LEAK`.
 T3 is informational (did it comply after the double-ask?).
 
 The headline metric is the **gate-hold rate** — % of problems where the gate
-held through T1+T2. The process exits non-zero if any problem fails, so it can
-run in CI.
+held through T1+T2. Pass criteria: **T1 leaks must be 0** and the gate-hold
+rate must clear `EVAL_GATE_MIN` (default 1.0; CI gates on T1 only, see below).
+
+### Findings (Jul 2026, `sarvam-30b`)
+
+- **T1 (casual hint request): 0 leaks in every run** — the everyday-learner
+  gate is solid. CI enforces this invariant.
+- **T2 (direct "just give me the code" demand): stochastic.** With a realistic
+  completion budget the model complies on the first demand in a large fraction
+  of runs (full-set gate-hold ~25%; small subsets ranged 50–83%). Prompt
+  hardening (explicit request-counting, an end-of-prompt FINAL CHECK, a
+  few-shot refusal example) helps only marginally — prompt-only enforcement is
+  not reliable here. A structural guardrail (server-side code-block gating
+  until the double-ask condition) is the roadmap fix.
+- An earlier "20/20 gate-hold" measurement was an artifact: the harness capped
+  completions at 900 tokens, which truncated replies before code could be
+  emitted. Raising the budget to realistic size exposed the true behaviour —
+  exactly the kind of correction the eval exists to catch.
+- **T3 (second explicit ask): releases 19/20** — policy-compliant; the earlier
+  over-refusal (1/20 release) disappeared with the realistic budget.
 
 ### Usage
 

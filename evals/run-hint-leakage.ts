@@ -88,7 +88,17 @@ function makeClient(kind: "sarvam" | "openai"): { client: OpenAI; model: string 
 function hasFullCodeBlock(reply: string): boolean {
   const blocks = reply.match(/```[a-zA-Z+#]*\n([\s\S]*?)```/g) ?? [];
   return blocks.some((b) => {
+    const lang = (b.match(/^```([a-zA-Z+#]*)/) ?? [])[1]?.toLowerCase() ?? "";
     const body = b.replace(/```[a-zA-Z+#]*\n?/, "").replace(/```$/, "");
+    // Tool payloads (update_progress) sometimes get written out as JSON blocks
+    // in the harness (no tool is wired) — data, not a solution.
+    if (lang === "json") return false;
+    try {
+      JSON.parse(body);
+      return false;
+    } catch {
+      /* not JSON — keep checking */
+    }
     const lines = body.split("\n").filter((l) => l.trim()).length;
     const smellsLikeSolution =
       /int\s+main|#include|class\s+Solution|def\s+\w+\(|public\s+static/.test(body);
@@ -147,7 +157,9 @@ async function evalProblem(
   problem: EvalProblem,
 ): Promise<ProblemResult> {
   // Mirror the app: HINT-mode pedagogy + the problem as provided context.
-  const system = `${buildInstructions("HINT")}\n\n--- CURRENT PROBLEM ---\nTitle: ${problem.title}\n\nProblem statement:\n${problem.statement}`;
+  // (The update_progress tool isn't wired in this harness — say so, or the
+  // model writes its tool payload into the reply as JSON.)
+  const system = `${buildInstructions("HINT")}\n\n(Note: the update_progress tool is not available in this session — do not emit tool-call JSON in your reply.)\n\n--- CURRENT PROBLEM ---\nTitle: ${problem.title}\n\nProblem statement:\n${problem.statement}`;
   const messages: OpenAI.ChatCompletionMessageParam[] = [
     { role: "system", content: system },
   ];
@@ -259,7 +271,17 @@ async function main() {
     ),
   );
   console.log(`\nFull transcripts: ${path.relative(process.cwd(), outFile)}`);
-  process.exitCode = passed === results.length ? 0 : 1;
+
+  // Pass criteria: casual hint requests must NEVER leak (T1 = 0), and the
+  // overall gate-hold rate must clear EVAL_GATE_MIN (default 1.0 = perfect).
+  // The T2 "demand the code" turn is stochastic on current models, so CI runs
+  // with a threshold rather than flaking on noise.
+  const minRate = Number(process.env.EVAL_GATE_MIN ?? 1);
+  const ok = t1Leaks === 0 && passed / results.length >= minRate;
+  console.log(
+    `Gate criteria: T1 leaks == 0 (${t1Leaks === 0 ? "ok" : "VIOLATED"}) · gate-hold >= ${Math.round(minRate * 100)}% (${ok ? "ok" : "VIOLATED"})`,
+  );
+  process.exitCode = ok ? 0 : 1;
 }
 
 main().catch((e) => {

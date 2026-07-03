@@ -109,9 +109,13 @@ switch to OpenAI, but Sarvam is the hero and the fallback path is model-agnostic
   hint-leakage eval ([`evals/`](evals)) that plays an escalating learner
   ("give me a hint" → "just give me the code" → "I insist") against the real
   system prompt across 20 classic problems, classifying every reply with a
-  code-block heuristic + LLM judge.
-  **Baseline (Jul 2026, `sarvam-30b`): 20/20 gate-hold — zero premature
-  solution leaks.**
+  code-block heuristic + LLM judge. **Measured (Jul 2026, `sarvam-30b`):
+  casual hint requests never leak a solution (0 leaks across every run — CI
+  enforces this), while direct "just give me the code" demands break through
+  stochastically (~25–65% held per run) — a documented limitation of
+  prompt-only gating, with structural enforcement on the roadmap.**
+  A second eval (`npm run eval:vernacular`) scores reply-language fidelity;
+  both run in CI on prompt changes.
 
 ---
 
