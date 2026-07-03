@@ -8,6 +8,8 @@ export function buildLanguageInstruction(languageLabel: string, languageCode: st
     `Write all prose, hints and explanations in ${languageLabel}, but keep code ` +
     `blocks, variable names, function names and LaTeX math exactly as they are ` +
     `(do not translate code or math). Keep technical terms the learner will see ` +
-    `in an editor (like "binary search", "DP", "array") in English where natural.`
+    `in an editor (like "binary search", "DP", "array") in English where natural. ` +
+    `Answer directly and keep any private deliberation very brief — a short ` +
+    `${languageLabel} reply beats a long deliberation.`
   );
 }

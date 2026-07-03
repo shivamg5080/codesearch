@@ -105,7 +105,9 @@ async function chat(
     model,
     messages,
     temperature: 0.4,
-    max_tokens: 900,
+    // Sarvam's reasoning models think before answering; a small cap starves the
+    // final content (reasoning ate the whole budget in testing).
+    max_tokens: 4000,
   });
   return res.choices[0]?.message?.content ?? "";
 }

@@ -21,9 +21,26 @@ export const maxDuration = 60;
 class ChatCompletionsAdapter extends OpenAIAdapter {
   getLanguageModel(): LanguageModel {
     const o = this.openai;
-    return createOpenAI({ baseURL: o.baseURL, apiKey: o.apiKey ?? undefined }).chat(
-      this.model,
-    );
+    return createOpenAI({
+      baseURL: o.baseURL,
+      apiKey: o.apiKey ?? undefined,
+      // Keep Sarvam's hidden reasoning short: with the default effort the model
+      // can spend its whole completion budget deliberating (especially on
+      // vernacular replies) and return empty content. Low effort also cuts
+      // first-token latency for learners.
+      fetch: async (url, init) => {
+        if (init?.body && typeof init.body === "string") {
+          try {
+            const body = JSON.parse(init.body);
+            body.reasoning_effort ??= "low";
+            init = { ...init, body: JSON.stringify(body) };
+          } catch {
+            /* non-JSON body — send as-is */
+          }
+        }
+        return fetch(url, init);
+      },
+    }).chat(this.model);
   }
 }
 

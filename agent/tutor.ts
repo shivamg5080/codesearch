@@ -75,6 +75,8 @@ export const TutorStateAnnotation = Annotation.Root({
   userCode: Annotation<string | undefined>(),
   hintLevel: Annotation<number | undefined>(),
   keyPoints: Annotation<string[] | undefined>(),
+  // CopilotKit forwards frontend tool definitions with a dynamic schema.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   tools: Annotation<any[]>(),
   ...MessagesAnnotation.spec,
 });

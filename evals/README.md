@@ -47,3 +47,29 @@ Full per-turn transcripts + verdicts are written to
 One full run ≈ 20 problems × (3 tutor turns + 3 judge calls) = **~120 LLM
 calls**, a few thousand tokens each — small, but not free. Use `EVAL_LIMIT`
 while iterating on prompts.
+
+## Vernacular-quality eval (`npm run eval:vernacular`)
+
+Tests the multilingual promise: **prose in the learner's language, code and
+math untouched.** Each (problem × language) cell sends the real HINT-mode
+prompt plus the vernacular instruction (`src/prompts/language.ts`); the learner
+asks in English, so the instruction alone must flip the reply language. Replies
+are scored by a Unicode-script heuristic (target-script share of non-code
+prose) plus an LLM judge (`prose_in_target` + `code_intact`).
+
+```bash
+npm run eval:vernacular                        # 5 problems × hi/ta/bn
+EVAL_LIMIT=3 EVAL_LANGS=hi-IN,ta-IN npm run eval:vernacular
+```
+
+### Findings (Jul 2026, `sarvam-30b`)
+
+- Initial run scored **0%** — every reply was empty. Root cause: the model's
+  hidden reasoning exhausted the completion budget (the starter tier caps
+  `max_tokens` at 4096) before it wrote any content, especially for vernacular
+  asks (observed up to ~15K chars of reasoning).
+- Mitigations (a brevity line in the language prompt + `reasoning_effort: low`,
+  also applied to the production adapter) raised the pass rate to **~67%**;
+  passing replies are high quality (90%+ target-script prose, code intact).
+- The residual failures are all the same starvation mode — fixed by a higher
+  Sarvam tier (larger completion budget), not by prompting.

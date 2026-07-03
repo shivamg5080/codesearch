@@ -1,0 +1,40 @@
+name: Prompt evals
+
+# The prompts ARE the product behaviour — regression-test them whenever they
+# (or the eval harness) change. Requires repo secrets SARVAM_API_KEY and
+# OPENAI_API_KEY (judge).
+
+on:
+  pull_request:
+    paths:
+      - "src/prompts/**"
+      - "evals/**"
+  push:
+    branches: [main]
+    paths:
+      - "src/prompts/**"
+      - "evals/**"
+
+jobs:
+  evals:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Hint-leakage eval (subset)
+        run: EVAL_LIMIT=6 EVAL_CONCURRENCY=3 npm run eval:hints
+        env:
+          SARVAM_API_KEY: ${{ secrets.SARVAM_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      - name: Vernacular eval (subset, report-only)
+        # Report-only until the Sarvam tier's max_tokens cap stops starving
+        # long-reasoning vernacular replies (see evals/README.md findings).
+        continue-on-error: true
+        run: EVAL_LIMIT=2 EVAL_LANGS=hi-IN,ta-IN npm run eval:vernacular
+        env:
+          SARVAM_API_KEY: ${{ secrets.SARVAM_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}

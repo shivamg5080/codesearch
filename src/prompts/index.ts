@@ -27,3 +27,4 @@ export function buildInstructions(mode: TutorMode): string {
 export { PEDAGOGY } from "./pedagogy";
 export { buildLanguageInstruction } from "./language";
 export { EVAL_JUDGE_SYSTEM, buildJudgeUserMessage } from "./eval-judge";
+export { VERNACULAR_JUDGE_SYSTEM, buildVernacularJudgeUserMessage } from "./eval-vernacular";

@@ -13,6 +13,7 @@ behaviour changes everywhere; no application code needs to touch prompt strings.
 | `modes/quiz.ts` | QUIZ ME mode | tutor chat |
 | `language.ts` | Vernacular reply instruction (non-English languages) | tutor chat |
 | `eval-judge.ts` | LLM-judge classification prompt | `evals/run-hint-leakage.ts` |
+| `eval-vernacular.ts` | Language/code-intact judge prompt | `evals/run-vernacular.ts` |
 
 `index.ts` assembles them (`buildInstructions(mode)`) and is the only import
 site the rest of the codebase uses (`@/prompts`, or `../src/prompts` from
