@@ -8,17 +8,17 @@ const OPTIONS: { id: Status; label: string; on: string }[] = [
   {
     id: "SOLVED",
     label: "✓ Solved",
-    on: "border-[#34d399]/40 bg-[#34d399]/10 text-[#34d399]",
+    on: "border-(--green-brd) bg-(--green-bg) text-(--green)",
   },
   {
     id: "ATTEMPTING",
     label: "Attempting",
-    on: "border-[#f5b942]/40 bg-[#f5b942]/10 text-[#f5b942]",
+    on: "border-(--amber-brd) bg-(--amber-bg) text-(--amber)",
   },
   {
     id: "BOOKMARKED",
     label: "☆ Bookmark",
-    on: "border-[#6d7cff]/50 bg-[#6d7cff]/10 text-[#aab2ff]",
+    on: "border-(--accent-brd) bg-(--accent-bg) text-(--accent-soft)",
   },
 ];
 
@@ -47,7 +47,7 @@ export function ProblemStatusControls({
   };
 
   return (
-    <div className="flex items-center gap-[2px] rounded-lg border border-white/10 bg-[#0e0f14] p-[2px]">
+    <div className="flex items-center gap-[2px] rounded-lg border border-(--border) bg-(--inset) p-[2px]">
       {OPTIONS.map((o) => {
         const active = status === o.id;
         return (
@@ -58,7 +58,7 @@ export function ProblemStatusControls({
             className={`rounded-md border px-3 py-1 font-mono text-[11.5px] transition disabled:opacity-60 ${
               active
                 ? o.on
-                : "border-transparent text-[#8b8e98] hover:bg-white/5 hover:text-[#e8e9ee]"
+                : "border-transparent text-(--muted) hover:bg-(--hover) hover:text-(--text)"
             }`}
           >
             {o.label}

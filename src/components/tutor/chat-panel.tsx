@@ -56,10 +56,10 @@ function TutorMessage({ message, isLoading, isCurrentMessage }: AssistantMessage
   const thinking = !content.trim() && !!isLoading && !!isCurrentMessage;
   if (!content.trim() && !thinking) return null;
   return (
-    <div className="mb-3 flex max-w-[88%] flex-col gap-2 self-start rounded-xl border border-white/[0.06] border-l-2 border-l-[#6d7cff] bg-[#191b24] px-[15px] py-3">
+    <div className="mb-3 flex max-w-[88%] flex-col gap-2 self-start rounded-xl border border-(--border-soft) border-l-2 border-l-(--accent) bg-(--bubble) px-[15px] py-3">
       <div className="flex items-center gap-2">
-        <span className="h-[7px] w-[7px] rounded-full bg-[#6d7cff]" />
-        <span className="font-mono text-[10px] text-[#8b8e98]">TUTOR</span>
+        <span className="h-[7px] w-[7px] rounded-full bg-(--accent)" />
+        <span className="font-mono text-[10px] text-(--muted)">TUTOR</span>
       </div>
       {thinking ? (
         <span className="flex items-center gap-2 py-1" aria-label="The tutor is thinking">
@@ -67,15 +67,15 @@ function TutorMessage({ message, isLoading, isCurrentMessage }: AssistantMessage
             {[0, 1, 2].map((i) => (
               <span
                 key={i}
-                className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#6d7cff]"
+                className="h-1.5 w-1.5 animate-pulse rounded-full bg-(--accent)"
                 style={{ animationDelay: `${i * 220}ms` }}
               />
             ))}
           </span>
-          <span className="font-mono text-[11px] text-[#8b8e98]">thinking</span>
+          <span className="font-mono text-[11px] text-(--muted)">thinking</span>
         </span>
       ) : (
-        <div className="tutor-markdown text-[13.5px] leading-relaxed text-[#d7d9e0]">
+        <div className="tutor-markdown text-[13.5px] leading-relaxed text-(--body)">
           <Markdown content={content} />
         </div>
       )}
@@ -87,7 +87,7 @@ function LearnerMessage({ message }: UserMessageProps) {
   const content = messageText(message?.content);
   if (!content) return null;
   return (
-    <div className="mb-3 max-w-[78%] self-end rounded-xl border border-white/[0.08] bg-[#0e0f14] px-3.5 py-2.5 text-[13.5px] leading-[1.55] text-[#d7d9e0]">
+    <div className="mb-3 max-w-[78%] self-end rounded-xl border border-(--border) bg-(--inset) px-3.5 py-2.5 text-[13.5px] leading-[1.55] text-(--body)">
       {content}
     </div>
   );
@@ -126,14 +126,14 @@ function Composer({ inProgress, onSend, onStop }: InputProps) {
   };
 
   const quiet =
-    "h-8 rounded-md bg-transparent px-2 font-mono text-[11px] text-[#8b8e98] transition hover:bg-white/[0.06] hover:text-[#e8e9ee]";
+    "h-8 rounded-md bg-transparent px-2 font-mono text-[11px] text-(--muted) transition hover:bg-(--hover) hover:text-(--text)";
 
   return (
     <div className="flex flex-col gap-[7px] px-5 pb-4 pt-3">
       {ctx.voiceError && (
-        <span className="px-2 font-mono text-[10.5px] text-[#f87171]">{ctx.voiceError}</span>
+        <span className="px-2 font-mono text-[10.5px] text-(--red)">{ctx.voiceError}</span>
       )}
-      <div className="flex flex-col gap-1 rounded-2xl border border-white/[0.12] bg-[#1b1d27] px-3 pb-2 pt-3 focus-within:border-[#6d7cff]">
+      <div className="flex flex-col gap-1 rounded-2xl border border-(--border-strong) bg-(--control) px-3 pb-2 pt-3 focus-within:border-(--accent)">
         <textarea
           value={text}
           onChange={(e) => setText(e.target.value)}
@@ -145,7 +145,7 @@ function Composer({ inProgress, onSend, onStop }: InputProps) {
           }}
           placeholder="Ask the tutor…"
           rows={Math.min(4, Math.max(1, text.split("\n").length))}
-          className="w-full resize-none bg-transparent px-1 text-[13.5px] leading-relaxed text-[#e8e9ee] outline-none placeholder:text-[#6b6e79]"
+          className="w-full resize-none bg-transparent px-1 text-[13.5px] leading-relaxed text-(--text) outline-none placeholder:text-(--dim)"
         />
         <div className="flex items-center gap-1">
           {/* Language + model, quiet selects (Claude-composer style) */}
@@ -157,12 +157,12 @@ function Composer({ inProgress, onSend, onStop }: InputProps) {
               className={`${quiet} cursor-pointer appearance-none pr-5`}
             >
               {TUTOR_LANGUAGES.map((l) => (
-                <option key={l.code} value={l.code} className="bg-[#1b1d27]">
+                <option key={l.code} value={l.code} className="bg-(--control)">
                   {l.native}
                 </option>
               ))}
             </select>
-            <span className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 text-[8px] text-[#8b8e98]">
+            <span className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 text-[8px] text-(--muted)">
               ▾
             </span>
           </div>
@@ -174,12 +174,12 @@ function Composer({ inProgress, onSend, onStop }: InputProps) {
               className={`${quiet} cursor-pointer appearance-none pr-5`}
             >
               {PROVIDERS.map((p) => (
-                <option key={p.id} value={p.id} className="bg-[#1b1d27]">
+                <option key={p.id} value={p.id} className="bg-(--control)">
                   {p.label}
                 </option>
               ))}
             </select>
-            <span className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 text-[8px] text-[#8b8e98]">
+            <span className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 text-[8px] text-(--muted)">
               ▾
             </span>
           </div>
@@ -191,8 +191,8 @@ function Composer({ inProgress, onSend, onStop }: InputProps) {
             title="Speak your question (Sarvam speech-to-text)"
             className={`flex h-8 items-center gap-1.5 rounded-md px-2.5 font-mono text-[11px] transition disabled:opacity-50 ${
               ctx.recording
-                ? "bg-[#f87171]/15 text-[#f87171]"
-                : "text-[#8b8e98] hover:bg-white/[0.06] hover:text-[#e8e9ee]"
+                ? "bg-(--red-bg) text-(--red)"
+                : "text-(--muted) hover:bg-(--hover) hover:text-(--text)"
             }`}
           >
             {ctx.recording ? "⏺ stop" : ctx.voiceBusy ? "…" : "🎤"}
@@ -203,8 +203,8 @@ function Composer({ inProgress, onSend, onStop }: InputProps) {
             title="Read replies aloud (Sarvam text-to-speech)"
             className={`flex h-8 items-center gap-1.5 rounded-md px-2.5 font-mono text-[11px] transition ${
               ctx.speakReplies
-                ? "bg-[#6d7cff]/15 text-[#aab2ff]"
-                : "text-[#8b8e98] hover:bg-white/[0.06] hover:text-[#e8e9ee]"
+                ? "bg-(--accent-bg) text-(--accent-soft)"
+                : "text-(--muted) hover:bg-(--hover) hover:text-(--text)"
             }`}
           >
             {ctx.speakReplies ? "🔊" : "🔈"}
@@ -214,7 +214,7 @@ function Composer({ inProgress, onSend, onStop }: InputProps) {
               type="button"
               onClick={() => onStop?.()}
               title="Stop generating"
-              className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-sm text-[#e8e9ee] transition hover:bg-white/20"
+              className="flex h-9 w-9 items-center justify-center rounded-full bg-(--inset) text-sm text-(--text) transition hover:bg-(--hover)"
             >
               ◼
             </button>
@@ -224,14 +224,14 @@ function Composer({ inProgress, onSend, onStop }: InputProps) {
               onClick={send}
               disabled={!text.trim()}
               title="Send"
-              className="flex h-9 w-9 items-center justify-center rounded-full bg-[#6d7cff] text-[15px] font-bold text-[#0b0c10] transition hover:bg-[#8490ff] disabled:opacity-40"
+              className="flex h-9 w-9 items-center justify-center rounded-full bg-(--accent) text-[15px] font-bold text-(--accent-contrast) transition hover:bg-(--accent-hover) disabled:opacity-40"
             >
               ↑
             </button>
           )}
         </div>
       </div>
-      <div className="text-center font-mono text-[10.5px] text-[#6b6e79]">
+      <div className="text-center font-mono text-[10.5px] text-(--dim)">
         Ask by text or voice · 11 Indian languages
       </div>
     </div>
@@ -371,19 +371,19 @@ export function ChatPanel({
           <div className="flex-none px-5 pt-3">
             <button
               onClick={() => setShowHistory((s) => !s)}
-              className="flex w-full items-center gap-2 rounded-[10px] border border-white/[0.08] bg-[#181a22] px-3.5 py-2 text-left transition hover:border-white/[0.18]"
+              className="flex w-full items-center gap-2 rounded-[10px] border border-(--border) bg-(--surface-2) px-3.5 py-2 text-left transition hover:border-(--border-hover)"
             >
-              <span className="font-mono text-[11px] text-[#8b8e98]">
+              <span className="font-mono text-[11px] text-(--muted)">
                 Previous conversation ({history.length} message{history.length === 1 ? "" : "s"})
               </span>
               <span className="flex-1" />
-              <span className="text-[10px] text-[#8b8e98]">{showHistory ? "▴" : "▾"}</span>
+              <span className="text-[10px] text-(--muted)">{showHistory ? "▴" : "▾"}</span>
             </button>
             {showHistory && (
-              <div className="mt-1.5 flex max-h-64 flex-col gap-2 overflow-y-auto rounded-[10px] border border-white/[0.06] bg-[#171922] px-3.5 py-2.5">
+              <div className="mt-1.5 flex max-h-64 flex-col gap-2 overflow-y-auto rounded-[10px] border border-(--border-soft) bg-(--surface-2) px-3.5 py-2.5">
                 {history.map((m, i) => (
-                  <div key={i} className="text-xs leading-normal text-[#8b8e98]">
-                    <span className="font-mono text-[10px] text-[#6b6e79]">
+                  <div key={i} className="text-xs leading-normal text-(--muted)">
+                    <span className="font-mono text-[10px] text-(--dim)">
                       {m.role === "USER" ? "YOU · " : "TUTOR · "}
                     </span>
                     {m.content}
@@ -414,7 +414,7 @@ export function ChatPanel({
                 <button
                   key={s}
                   onClick={() => sendStarter(s)}
-                  className="pointer-events-auto rounded-full border border-white/[0.12] bg-[#1b1d27] px-4 py-2 text-[12.5px] text-[#c6c8d0] transition hover:border-[#6d7cff] hover:text-[#e8e9ee]"
+                  className="pointer-events-auto rounded-full border border-(--border-strong) bg-(--control) px-4 py-2 text-[12.5px] text-(--body-2) transition hover:border-(--accent) hover:text-(--text)"
                 >
                   {s}
                 </button>

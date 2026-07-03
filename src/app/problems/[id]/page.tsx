@@ -6,6 +6,7 @@ import { getUsage } from "@/lib/usage";
 import { TutorWorkspace } from "@/components/tutor/tutor-workspace";
 import { ProblemStatusControls } from "@/components/problem-status-controls";
 import { auth, signOut } from "@/auth";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 export default async function ProblemPage({
   params,
@@ -39,22 +40,23 @@ export default async function ProblemPage({
       .toUpperCase() || "U";
 
   return (
-    <main className="min-h-screen bg-[#0b0c10] text-[#e8e9ee] [color-scheme:dark]">
-      <div className="flex h-12 items-center gap-4 border-b border-white/[0.08] px-4">
+    <main className="min-h-screen bg-(--bg) text-(--text)">
+      <div className="flex h-12 items-center gap-4 border-b border-(--border) px-4">
         <Link
           href="/"
-          className="rounded-md px-2 py-1.5 font-mono text-xs text-[#8b8e98] transition hover:bg-white/5 hover:text-[#e8e9ee]"
+          className="rounded-md px-2 py-1.5 font-mono text-xs text-(--muted) transition hover:bg-(--hover) hover:text-(--text)"
         >
           ← All problems
         </Link>
         <span className="flex-1" />
         {session?.user && <ProblemStatusControls problemId={id} initialStatus={status} />}
         <span className="flex-1" />
+        <ThemeToggle />
         {session?.user ? (
           <div className="flex items-center gap-3.5">
             <Link
               href="/dashboard"
-              className="px-1 py-1.5 text-[12.5px] text-[#8b8e98] transition hover:text-[#e8e9ee]"
+              className="px-1 py-1.5 text-[12.5px] text-(--muted) transition hover:text-(--text)"
             >
               Dashboard
             </Link>
@@ -63,18 +65,18 @@ export default async function ProblemPage({
                 className="flex items-center gap-[7px]"
                 title={`${usage.count} of ${usage.cap} tutor messages used today`}
               >
-                <span className="font-mono text-[11px] text-[#8b8e98]">
+                <span className="font-mono text-[11px] text-(--muted)">
                   {usage.count}/{usage.cap} today
                 </span>
-                <div className="h-1 w-11 overflow-hidden rounded-sm bg-white/10">
+                <div className="h-1 w-11 overflow-hidden rounded-sm bg-(--inset)">
                   <div
-                    className="h-full bg-[#8b8e98]"
+                    className="h-full bg-(--muted)"
                     style={{ width: `${Math.min(100, (usage.count / usage.cap) * 100)}%` }}
                   />
                 </div>
               </div>
             )}
-            <div className="flex h-[26px] w-[26px] items-center justify-center rounded-full border border-white/[0.14] bg-[#1b1d27] text-[11px] font-semibold">
+            <div className="flex h-[26px] w-[26px] items-center justify-center rounded-full border border-(--border-strong) bg-(--control) text-[11px] font-semibold">
               {initials}
             </div>
             <form
@@ -83,7 +85,7 @@ export default async function ProblemPage({
                 await signOut({ redirectTo: "/" });
               }}
             >
-              <button className="px-1 py-1.5 text-[12.5px] text-[#8b8e98] transition hover:text-[#e8e9ee]">
+              <button className="px-1 py-1.5 text-[12.5px] text-(--muted) transition hover:text-(--text)">
                 Sign out
               </button>
             </form>
@@ -91,7 +93,7 @@ export default async function ProblemPage({
         ) : (
           <Link
             href={`/signin?callbackUrl=/problems/${id}`}
-            className="rounded-lg bg-[#6d7cff] px-3.5 py-1.5 text-sm font-medium text-[#0b0c10] hover:bg-[#8490ff]"
+            className="rounded-lg bg-(--accent) px-3.5 py-1.5 text-sm font-medium text-(--accent-contrast) hover:bg-(--accent-hover)"
           >
             Sign in
           </Link>

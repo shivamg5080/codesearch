@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { ReviewQueue } from "@/components/review-queue";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 export default async function ReviewsPage() {
   const session = await auth();
@@ -19,16 +20,17 @@ export default async function ReviewsPage() {
   });
 
   return (
-    <main className="min-h-screen bg-[#0b0c10] text-[#e8e9ee] [color-scheme:dark]">
-      <div className="flex h-12 items-center gap-4 border-b border-white/[0.08] px-4">
+    <main className="min-h-screen bg-(--bg) text-(--text)">
+      <div className="flex h-12 items-center gap-4 border-b border-(--border) px-4">
         <Link
           href="/dashboard"
-          className="rounded-md px-2 py-1.5 font-mono text-xs text-[#8b8e98] transition hover:bg-white/5 hover:text-[#e8e9ee]"
+          className="rounded-md px-2 py-1.5 font-mono text-xs text-(--muted) transition hover:bg-(--hover) hover:text-(--text)"
         >
           ← Dashboard
         </Link>
         <span className="flex-1" />
-        <span className="font-mono text-[11px] text-[#8b8e98]">
+        <ThemeToggle />
+        <span className="font-mono text-[11px] text-(--muted)">
           {due.length} due for review
         </span>
       </div>

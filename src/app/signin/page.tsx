@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { signIn, auth } from "@/auth";
 import { redirect } from "next/navigation";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 function GoogleIcon() {
   return (
@@ -88,30 +89,33 @@ export default async function SignIn({
   const hasGitHub = !!(process.env.AUTH_GITHUB_ID && process.env.AUTH_GITHUB_SECRET);
 
   const oauthBtn =
-    "flex w-full items-center justify-center gap-2.5 rounded-lg border border-white/[0.12] bg-[#12131a] px-4 py-2.5 text-sm font-medium text-[#e8e9ee] transition hover:border-white/25 hover:bg-[#171922]";
+    "flex w-full items-center justify-center gap-2.5 rounded-lg border border-(--border-strong) bg-(--surface-2) px-4 py-2.5 text-sm font-medium text-(--text) transition hover:border-(--border-hover) hover:bg-(--surface-2)";
 
   return (
-    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#0b0c10] px-6 text-[#e8e9ee] [color-scheme:dark]">
+    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-(--bg) px-6 text-(--text)">
       <Blobs />
 
       {/* Top bar */}
       <div className="absolute inset-x-0 top-0 flex items-center justify-between px-6 py-5">
         <Link href="/" className="flex items-center gap-2.5">
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#6d7cff] text-[#0b0c10]">
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-(--accent) text-(--accent-contrast)">
             ⚡
           </span>
           <span className="text-[15px] font-semibold tracking-tight">CodeSearch</span>
         </Link>
-        <Link
-          href="/"
-          className="font-mono text-xs text-[#8b8e98] transition hover:text-[#e8e9ee]"
-        >
-          ← All problems
-        </Link>
+        <div className="flex items-center gap-3">
+          <ThemeToggle />
+          <Link
+            href="/"
+            className="font-mono text-xs text-(--muted) transition hover:text-(--text)"
+          >
+            ← All problems
+          </Link>
+        </div>
       </div>
 
       {/* Card */}
-      <div className="relative w-full max-w-md rounded-2xl border border-white/[0.08] bg-[#0f1015]/95 px-8 py-10 shadow-[0_20px_60px_rgba(0,0,0,0.5)] backdrop-blur-sm sm:px-10">
+      <div className="relative w-full max-w-md rounded-2xl border border-(--border) bg-(--surface) px-8 py-10 shadow-2xl backdrop-blur-sm sm:px-10">
         <h1 className="mb-8 text-center text-[34px] font-extrabold tracking-[-0.03em]">
           Log in
         </h1>
@@ -147,7 +151,7 @@ export default async function SignIn({
           {devLogin && (
             <>
               {(hasGitHub || hasGoogle) && (
-                <div className="flex items-center gap-3 py-2 font-mono text-[10px] text-[#6b6e79]">
+                <div className="flex items-center gap-3 py-2 font-mono text-[10px] text-(--dim)">
                   <div className="h-px flex-1 bg-white/[0.08]" />
                   or
                   <div className="h-px flex-1 bg-white/[0.08]" />
@@ -163,10 +167,10 @@ export default async function SignIn({
                 }}
                 className="space-y-6"
               >
-                <div className="rounded-lg border border-white/[0.12] bg-[#0b0c10] px-4 py-3 transition focus-within:border-[#6d7cff]">
+                <div className="rounded-lg border border-(--border-strong) bg-(--bg) px-4 py-3 transition focus-within:border-(--accent)">
                   <label
                     htmlFor="signin-email"
-                    className="block font-mono text-[10px] tracking-[0.14em] text-[#8b8e98]"
+                    className="block font-mono text-[10px] tracking-[0.14em] text-(--muted)"
                   >
                     EMAIL
                   </label>
@@ -176,24 +180,24 @@ export default async function SignIn({
                     type="email"
                     required
                     placeholder="yourname@email.com"
-                    className="mt-1 w-full bg-transparent text-sm text-[#e8e9ee] outline-none placeholder:text-[#4d505c]"
+                    className="mt-1 w-full bg-transparent text-sm text-(--text) outline-none placeholder:text-(--faint)"
                   />
                 </div>
 
                 {/* Split log-in button */}
                 <div className="flex justify-center">
                   <button className="group flex items-stretch gap-1.5" title="Log in">
-                    <span className="flex -skew-x-12 items-center rounded-lg bg-[#6d7cff] px-7 py-2.5 transition group-hover:bg-[#8490ff]">
-                      <span className="skew-x-12 text-sm font-semibold text-[#0b0c10]">
+                    <span className="flex -skew-x-12 items-center rounded-lg bg-(--accent) px-7 py-2.5 transition group-hover:bg-(--accent-hover)">
+                      <span className="skew-x-12 text-sm font-semibold text-(--accent-contrast)">
                         Log in
                       </span>
                     </span>
-                    <span className="flex -skew-x-12 items-center rounded-lg bg-[#6d7cff] px-3.5 transition group-hover:translate-x-0.5 group-hover:bg-[#8490ff]">
-                      <span className="skew-x-12 text-sm font-bold text-[#0b0c10]">→</span>
+                    <span className="flex -skew-x-12 items-center rounded-lg bg-(--accent) px-3.5 transition group-hover:translate-x-0.5 group-hover:bg-(--accent-hover)">
+                      <span className="skew-x-12 text-sm font-bold text-(--accent-contrast)">→</span>
                     </span>
                   </button>
                 </div>
-                <p className="text-center font-mono text-[10.5px] text-[#6b6e79]">
+                <p className="text-center font-mono text-[10.5px] text-(--dim)">
                   dev login — local testing only, no password
                 </p>
               </form>
@@ -201,7 +205,7 @@ export default async function SignIn({
           )}
         </div>
 
-        <p className="mt-8 text-center text-xs text-[#8b8e98]">
+        <p className="mt-8 text-center text-xs text-(--muted)">
           New here? Signing in creates your account — free, hints included.
         </p>
       </div>

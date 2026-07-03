@@ -1,27 +1,97 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/* Class-based dark mode: `dark:` and the semantic tokens below flip with the
+   .dark class on <html> (set pre-paint from localStorage; default dark). */
+@custom-variant dark (&:where(.dark, .dark *));
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* ---- Semantic theme tokens ----------------------------------------------
+   Light values derive from the dashboard's white/neutral aesthetic; dark
+   values are the workbench palette. Components reference ONLY these. */
+:root {
+  color-scheme: light;
+  --bg: #f7f7f5;
+  --surface: #ffffff;
+  --surface-2: #fafafa;
+  --control: #ffffff;
+  --inset: #efefec;
+  --room: #f3f3f1;
+  --code-bg: #fbfbfa;
+  --code-strip: #f4f4f2;
+  --bubble: #ffffff;
+  --border: rgba(0, 0, 0, 0.1);
+  --border-soft: rgba(0, 0, 0, 0.06);
+  --border-strong: rgba(0, 0, 0, 0.14);
+  --border-hover: rgba(0, 0, 0, 0.28);
+  --hover: rgba(0, 0, 0, 0.045);
+  --text: #16181d;
+  --body: #2e3138;
+  --body-2: #4b4f58;
+  --muted: #6d7078;
+  --dim: #9a9da4;
+  --faint: #b9bcc2;
+  --accent: #5560ee;
+  --accent-hover: #4550e6;
+  --accent-soft: #4953e8;
+  --accent-contrast: #ffffff;
+  --accent-bg: rgba(85, 96, 238, 0.09);
+  --accent-brd: rgba(85, 96, 238, 0.45);
+  --amber: #a16207;
+  --amber-bg: rgba(217, 119, 6, 0.1);
+  --amber-brd: rgba(161, 98, 7, 0.35);
+  --green: #059669;
+  --green-bg: rgba(5, 150, 105, 0.09);
+  --green-brd: rgba(5, 150, 105, 0.35);
+  --red: #dc2626;
+  --red-bg: rgba(220, 38, 38, 0.08);
+  --red-brd: rgba(220, 38, 38, 0.3);
+}
+.dark {
+  color-scheme: dark;
+  --bg: #0b0c10;
+  --surface: #0f1015;
+  --surface-2: #171922;
+  --control: #1b1d27;
+  --inset: #0e0f14;
+  --room: #14151c;
+  --code-bg: #0d0e13;
+  --code-strip: #101117;
+  --bubble: #191b24;
+  --border: rgba(255, 255, 255, 0.08);
+  --border-soft: rgba(255, 255, 255, 0.06);
+  --border-strong: rgba(255, 255, 255, 0.12);
+  --border-hover: rgba(255, 255, 255, 0.25);
+  --hover: rgba(255, 255, 255, 0.06);
+  --text: #e8e9ee;
+  --body: #d7d9e0;
+  --body-2: #b8bac2;
+  --muted: #8b8e98;
+  --dim: #6b6e79;
+  --faint: #4d505c;
+  --accent: #6d7cff;
+  --accent-hover: #8490ff;
+  --accent-soft: #aab2ff;
+  --accent-contrast: #0b0c10;
+  --accent-bg: rgba(109, 124, 255, 0.1);
+  --accent-brd: rgba(109, 124, 255, 0.5);
+  --amber: #f5b942;
+  --amber-bg: rgba(245, 185, 66, 0.1);
+  --amber-brd: rgba(245, 185, 66, 0.35);
+  --green: #34d399;
+  --green-bg: rgba(52, 211, 153, 0.1);
+  --green-brd: rgba(52, 211, 153, 0.35);
+  --red: #f87171;
+  --red-bg: rgba(248, 113, 113, 0.1);
+  --red-brd: rgba(248, 113, 113, 0.3);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
+  background: var(--bg);
+  color: var(--text);
   font-family: Arial, Helvetica, sans-serif;
 }
 
@@ -70,10 +140,10 @@ body {
 .tutor-chat .copilotKitChat {
   background: transparent;
   --copilot-kit-background-color: transparent;
-  --copilot-kit-primary-color: #6d7cff;
-  --copilot-kit-contrast-color: #e8e9ee;
-  --copilot-kit-secondary-contrast-color: #d7d9e0;
-  --copilot-kit-separator-color: rgba(255, 255, 255, 0.08);
+  --copilot-kit-primary-color: var(--accent);
+  --copilot-kit-contrast-color: var(--text);
+  --copilot-kit-secondary-contrast-color: var(--body);
+  --copilot-kit-separator-color: var(--border);
 }
 .tutor-chat .copilotKitMessages {
   background: transparent;

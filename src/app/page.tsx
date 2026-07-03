@@ -4,19 +4,20 @@ import { searchProblems, getTopTags } from "@/lib/problems";
 import { getStatusMap } from "@/lib/progress";
 import { AuthButton } from "@/components/auth-button";
 import { auth } from "@/auth";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 const STATUS_BADGE: Record<string, { label: string; cls: string }> = {
   SOLVED: {
     label: "✓ solved",
-    cls: "border-[#34d399]/30 bg-[#34d399]/10 text-[#34d399]",
+    cls: "border-(--green-brd) bg-(--green-bg) text-(--green)",
   },
   ATTEMPTING: {
     label: "attempting",
-    cls: "border-[#f5b942]/30 bg-[#f5b942]/10 text-[#f5b942]",
+    cls: "border-(--amber-brd) bg-(--amber-bg) text-(--amber)",
   },
   BOOKMARKED: {
     label: "☆ saved",
-    cls: "border-[#6d7cff]/40 bg-[#6d7cff]/10 text-[#aab2ff]",
+    cls: "border-(--accent-brd) bg-(--accent-bg) text-(--accent-soft)",
   },
 };
 
@@ -49,13 +50,13 @@ function difficultyBadge(p: {
 
 // Three restrained tiers (matches the dashboard's easy/medium/hard mix).
 function diffTier(d: number): string {
-  if (d <= 3) return "border-[#34d399]/30 bg-[#34d399]/10 text-[#34d399]";
-  if (d <= 6) return "border-[#f5b942]/30 bg-[#f5b942]/10 text-[#f5b942]";
-  return "border-[#f87171]/30 bg-[#f87171]/10 text-[#f87171]";
+  if (d <= 3) return "border-(--green-brd) bg-(--green-bg) text-(--green)";
+  if (d <= 6) return "border-(--amber-brd) bg-(--amber-bg) text-(--amber)";
+  return "border-(--red-brd) bg-(--red-bg) text-(--red)";
 }
 
 const inputCls =
-  "rounded-lg border border-white/[0.10] bg-[#0f1015] px-3.5 py-2.5 text-sm text-[#e8e9ee] outline-none placeholder:text-[#6b6e79] focus:border-[#6d7cff]";
+  "rounded-lg border border-(--border) bg-(--surface) px-3.5 py-2.5 text-sm text-(--text) outline-none placeholder:text-(--dim) focus:border-(--accent)";
 
 export default async function Home({
   searchParams,
@@ -89,18 +90,21 @@ export default async function Home({
     : {};
 
   return (
-    <main className="min-h-screen bg-[#0b0c10] text-[#e8e9ee] [color-scheme:dark]">
+    <main className="min-h-screen bg-(--bg) text-(--text)">
       <div className="mx-auto max-w-6xl px-6 py-10">
         <header className="mb-8 flex items-start justify-between gap-4">
           <div>
             <h1 className="text-[34px] font-extrabold leading-tight tracking-[-0.03em]">
               CodeSearch
             </h1>
-            <p className="mt-1 font-mono text-[12.5px] text-[#8b8e98]">
+            <p className="mt-1 font-mono text-[12.5px] text-(--muted)">
               pick a problem · learn it with an AI tutor — hints, not spoilers
             </p>
           </div>
-          <AuthButton />
+          <div className="flex items-center gap-3">
+            <ThemeToggle />
+            <AuthButton />
+          </div>
         </header>
 
         <form className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto_auto_auto_auto]">
@@ -135,13 +139,13 @@ export default async function Home({
           </select>
           <button
             type="submit"
-            className="rounded-lg bg-[#6d7cff] px-5 py-2.5 text-sm font-semibold text-[#0b0c10] transition hover:bg-[#8490ff]"
+            className="rounded-lg bg-(--accent) px-5 py-2.5 text-sm font-semibold text-(--accent-contrast) transition hover:bg-(--accent-hover)"
           >
             Search
           </button>
         </form>
 
-        <p className="mb-4 font-mono text-[11.5px] text-[#6b6e79]">
+        <p className="mb-4 font-mono text-[11.5px] text-(--dim)">
           {total.toLocaleString()} problems
           {sp.q ? ` matching “${sp.q}”` : ""} ·{" "}
           {filters.source ? SOURCE_LABEL[filters.source] : "all sources"}
@@ -152,10 +156,10 @@ export default async function Home({
             <li key={p.id}>
               <Link
                 href={`/problems/${p.id}`}
-                className="group block rounded-lg border border-white/[0.08] bg-[#0f1015] p-4 transition hover:border-[#6d7cff]/60 hover:bg-[#12131a]"
+                className="group block rounded-lg border border-(--border) bg-(--surface) p-4 transition hover:border-(--accent-brd) hover:bg-(--surface-2)"
               >
                 <div className="flex items-start justify-between gap-3">
-                  <span className="font-semibold text-[#d7d9e0] group-hover:text-[#e8e9ee]">
+                  <span className="font-semibold text-(--body) group-hover:text-(--text)">
                     {p.title}
                   </span>
                   {p.difficultyNormalized != null && (
@@ -169,7 +173,7 @@ export default async function Home({
                   )}
                 </div>
                 <div className="mt-2.5 flex flex-wrap items-center gap-1.5 font-mono text-[10.5px]">
-                  <span className="rounded border border-white/[0.12] px-2 py-[3px] text-[#b0b3ba]">
+                  <span className="rounded border border-(--border-strong) px-2 py-[3px] text-(--body-2)">
                     {SOURCE_LABEL[p.source]}
                   </span>
                   {statusMap[p.id] && (
@@ -182,7 +186,7 @@ export default async function Home({
                   {p.tags.slice(0, 4).map((t) => (
                     <span
                       key={t}
-                      className="rounded border border-white/[0.08] px-2 py-[3px] text-[#8b8e98]"
+                      className="rounded border border-(--border) px-2 py-[3px] text-(--muted)"
                     >
                       {t}
                     </span>
@@ -194,7 +198,7 @@ export default async function Home({
         </ul>
 
         {problems.length === 0 && (
-          <p className="py-16 text-center text-[#8b8e98]">
+          <p className="py-16 text-center text-(--muted)">
             No problems match these filters — clear one and try again.
           </p>
         )}
@@ -202,7 +206,7 @@ export default async function Home({
         {totalPages > 1 && (
           <div className="mt-8 flex items-center justify-center gap-4 font-mono text-xs">
             <PageLink sp={sp} page={page - 1} disabled={page <= 1} label="← prev" />
-            <span className="text-[#6b6e79]">
+            <span className="text-(--dim)">
               page {page} / {totalPages}
             </span>
             <PageLink sp={sp} page={page + 1} disabled={page >= totalPages} label="next →" />
@@ -224,7 +228,7 @@ function PageLink({
   disabled: boolean;
   label: string;
 }) {
-  if (disabled) return <span className="text-[#3a3d47]">{label}</span>;
+  if (disabled) return <span className="text-(--faint)">{label}</span>;
   const params = new URLSearchParams();
   if (sp.q) params.set("q", sp.q);
   if (sp.source) params.set("source", sp.source);
@@ -235,7 +239,7 @@ function PageLink({
   return (
     <Link
       href={`/?${params.toString()}`}
-      className="text-[#aab2ff] transition hover:text-[#e8e9ee]"
+      className="text-(--accent-soft) transition hover:text-(--text)"
     >
       {label}
     </Link>

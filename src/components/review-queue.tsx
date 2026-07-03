@@ -69,16 +69,16 @@ export function ReviewQueue({ items }: { items: ReviewCard[] }) {
         <h1 className="text-2xl font-bold tracking-tight">
           {items.length === 0 ? "All caught up" : "Review session done"}
         </h1>
-        <p className="max-w-sm text-sm text-[#8b8e98]">
+        <p className="max-w-sm text-sm text-(--muted)">
           {items.length === 0
             ? "Nothing is due for review. Solve problems and they'll come back here on a spaced-repetition schedule."
             : `${remembered} of ${items.length} remembered — forgotten ones return tomorrow.`}
         </p>
         <div className="flex items-center gap-4 font-mono text-xs">
-          <Link href="/" className="text-[#aab2ff] transition hover:text-[#e8e9ee]">
+          <Link href="/" className="text-(--accent-soft) transition hover:text-(--text)">
             browse problems →
           </Link>
-          <Link href="/dashboard" className="text-[#8b8e98] transition hover:text-[#e8e9ee]">
+          <Link href="/dashboard" className="text-(--muted) transition hover:text-(--text)">
             dashboard
           </Link>
         </div>
@@ -89,36 +89,36 @@ export function ReviewQueue({ items }: { items: ReviewCard[] }) {
   return (
     <div className="mx-auto flex min-h-[70vh] max-w-xl flex-col justify-center px-6 py-12">
       <div className="mb-3 flex items-baseline">
-        <span className="font-mono text-[10.5px] tracking-[0.14em] text-[#8b8e98]">
+        <span className="font-mono text-[10.5px] tracking-[0.14em] text-(--muted)">
           REVIEW {idx + 1} / {items.length}
         </span>
         <span className="flex-1" />
-        <span className="font-mono text-[10px] text-[#6b6e79]">
+        <span className="font-mono text-[10px] text-(--dim)">
           recall first · then grade yourself
         </span>
       </div>
 
-      <div className="rounded-2xl border border-white/[0.08] bg-[#0f1015] p-7">
+      <div className="rounded-2xl border border-(--border) bg-(--surface) p-7">
         <h1 className="text-[28px] font-extrabold leading-tight tracking-[-0.02em]">
           {card.title}
         </h1>
         <div className="mt-3 flex flex-wrap items-center gap-2 font-mono text-[11px]">
-          <span className="rounded border border-white/[0.12] px-2 py-[3px] text-[#b0b3ba]">
+          <span className="rounded border border-(--border-strong) px-2 py-[3px] text-(--body-2)">
             {SOURCE_LABEL[card.source] ?? card.source}
           </span>
           {card.rating != null && (
-            <span className="rounded border border-[#b0b3ba]/30 bg-[#b0b3ba]/10 px-2 py-[3px] text-[#b0b3ba]">
+            <span className="rounded border border-(--border-strong) bg-(--hover) px-2 py-[3px] text-(--body-2)">
               Rating {card.rating}
             </span>
           )}
           {card.tags.map((t) => (
-            <span key={t} className="rounded border border-white/[0.08] px-2 py-[3px] text-[#8b8e98]">
+            <span key={t} className="rounded border border-(--border) px-2 py-[3px] text-(--muted)">
               {t}
             </span>
           ))}
         </div>
 
-        <p className="mt-5 text-sm leading-relaxed text-[#b8bac2]">
+        <p className="mt-5 text-sm leading-relaxed text-(--body-2)">
           Without looking: what was the key observation, the technique, and the
           complexity? Say it out loud or sketch it — then grade yourself honestly.
         </p>
@@ -127,14 +127,14 @@ export function ReviewQueue({ items }: { items: ReviewCard[] }) {
           <button
             onClick={() => grade(false)}
             disabled={busy}
-            className="flex-1 rounded-lg border border-[#f87171]/30 bg-[#f87171]/10 px-4 py-2.5 font-mono text-[12.5px] text-[#f87171] transition hover:bg-[#f87171]/20 disabled:opacity-50"
+            className="flex-1 rounded-lg border border-(--red-brd) bg-(--red-bg) px-4 py-2.5 font-mono text-[12.5px] text-(--red) transition hover:bg-(--red-bg) disabled:opacity-50"
           >
             ✗ Forgot
           </button>
           <button
             onClick={() => grade(true)}
             disabled={busy}
-            className="flex-1 rounded-lg border border-[#34d399]/30 bg-[#34d399]/10 px-4 py-2.5 font-mono text-[12.5px] text-[#34d399] transition hover:bg-[#34d399]/20 disabled:opacity-50"
+            className="flex-1 rounded-lg border border-(--green-brd) bg-(--green-bg) px-4 py-2.5 font-mono text-[12.5px] text-(--green) transition hover:bg-(--green-bg) disabled:opacity-50"
           >
             ✓ Remembered
           </button>
@@ -143,12 +143,12 @@ export function ReviewQueue({ items }: { items: ReviewCard[] }) {
         <div className="mt-4 flex h-5 items-center justify-between">
           <Link
             href={`/problems/${card.problemId}`}
-            className="font-mono text-[11px] text-[#8b8e98] transition hover:text-[#e8e9ee]"
+            className="font-mono text-[11px] text-(--muted) transition hover:text-(--text)"
           >
             reopen with tutor ↗
           </Link>
           {feedback && (
-            <span className="font-mono text-[11px] text-[#f5b942]">{feedback}</span>
+            <span className="font-mono text-[11px] text-(--amber)">{feedback}</span>
           )}
         </div>
       </div>

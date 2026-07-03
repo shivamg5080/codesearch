@@ -45,11 +45,11 @@ function HintLadder({ hintLevel }: { hintLevel: number }) {
   return (
     <div className="flex flex-col gap-2.5">
       <div className="flex items-baseline gap-2.5">
-        <span className="font-mono text-[10.5px] tracking-[0.14em] text-[#8b8e98]">
+        <span className="font-mono text-[10.5px] tracking-[0.14em] text-(--muted)">
           HINT LADDER
         </span>
         <span className="flex-1" />
-        <span className="font-mono text-[11.5px] text-[#f5b942]">{label}</span>
+        <span className="font-mono text-[11.5px] text-(--amber)">{label}</span>
       </div>
       <div className="flex items-stretch gap-1.5">
         {HINT_NAMES.map((name, i) => {
@@ -64,15 +64,15 @@ function HintLadder({ hintLevel }: { hintLevel: number }) {
                   }`}
                 />
               ) : isLock ? (
-                <div className="flex h-[15px] items-center justify-center rounded border border-dashed border-white/15 bg-white/[0.02]">
-                  <span className="text-[8.5px] leading-none text-[#8b8e98]">🔒</span>
+                <div className="flex h-[15px] items-center justify-center rounded border border-dashed border-(--border-strong) bg-(--hover)">
+                  <span className="text-[8.5px] leading-none text-(--muted)">🔒</span>
                 </div>
               ) : (
-                <div className="h-[15px] rounded border border-white/15 bg-white/[0.02]" />
+                <div className="h-[15px] rounded border border-(--border-strong) bg-(--hover)" />
               )}
               <div
                 className={`truncate font-mono text-[10px] ${
-                  filled ? "text-[#f5b942]" : "text-[#8b8e98]"
+                  filled ? "text-(--amber)" : "text-(--muted)"
                 }`}
               >
                 <span className="font-bold">L{i + 1}</span> {name}
@@ -83,7 +83,7 @@ function HintLadder({ hintLevel }: { hintLevel: number }) {
       </div>
       <div className="flex">
         <span className="flex-1" />
-        <span className="font-mono text-[10px] text-[#6b6e79]">
+        <span className="font-mono text-[10px] text-(--dim)">
           L5 unlocks only if you insist twice
         </span>
       </div>
@@ -128,23 +128,23 @@ export function ProblemPanel({
   const hasStatement = !!statement.trim();
 
   return (
-    <div className="flex flex-col gap-5 overflow-y-auto border-r border-white/[0.08] bg-[#0b0c10] p-6">
+    <div className="flex flex-col gap-5 overflow-y-auto border-r border-(--border) bg-(--bg) p-6">
       {/* Problem header */}
       <div className="flex flex-col gap-3">
-        <h1 className="text-[44px] font-extrabold leading-[1.05] tracking-[-0.03em] text-[#e8e9ee]">
+        <h1 className="text-[44px] font-extrabold leading-[1.05] tracking-[-0.03em] text-(--text)">
           {problem.title}
         </h1>
         <div className="flex flex-wrap items-center gap-2 font-mono text-[11.5px]">
-          <span className="rounded border border-white/[0.12] px-2 py-[3px] text-[#b0b3ba]">
+          <span className="rounded border border-(--border-strong) px-2 py-[3px] text-(--body-2)">
             {SOURCE_LABEL[problem.source] ?? problem.source}
           </span>
           {problem.rating != null && (
-            <span className="rounded border border-[#b0b3ba]/30 bg-[#b0b3ba]/10 px-2 py-[3px] text-[#b0b3ba]">
+            <span className="rounded border border-(--border-strong) bg-(--hover) px-2 py-[3px] text-(--body-2)">
               Rating {problem.rating}
             </span>
           )}
           {problem.tags.slice(0, 6).map((t) => (
-            <span key={t} className="rounded border border-white/[0.08] px-2 py-[3px] text-[#8b8e98]">
+            <span key={t} className="rounded border border-(--border) px-2 py-[3px] text-(--muted)">
               {t}
             </span>
           ))}
@@ -153,7 +153,7 @@ export function ProblemPanel({
             href={problem.url}
             target="_blank"
             rel="noreferrer"
-            className="px-1 py-[3px] text-[#8b8e98] hover:text-[#e8e9ee] hover:underline"
+            className="px-1 py-[3px] text-(--muted) hover:text-(--text) hover:underline"
           >
             Open on judge ↗
           </a>
@@ -161,25 +161,25 @@ export function ProblemPanel({
       </div>
 
       {/* Statement document card */}
-      <div className="overflow-hidden rounded-lg border border-white/[0.08] bg-[#0f1015]">
+      <div className="overflow-hidden rounded-lg border border-(--border) bg-(--surface)">
         <button
           onClick={() => setShowStatement((s) => !s)}
           className="flex w-full items-center gap-2.5 px-4 pb-2.5 pt-3.5 text-left"
         >
-          <span className="font-mono text-[10.5px] tracking-[0.14em] text-[#8b8e98]">
+          <span className="font-mono text-[10.5px] tracking-[0.14em] text-(--muted)">
             PROBLEM STATEMENT
           </span>
           {hasStatement ? (
-            <span className="rounded border border-[#34d399]/30 bg-[#34d399]/10 px-[7px] py-[2px] font-mono text-[10px] text-[#34d399]">
+            <span className="rounded border border-(--green-brd) bg-(--green-bg) px-[7px] py-[2px] font-mono text-[10px] text-(--green)">
               provided
             </span>
           ) : (
-            <span className="rounded border border-[#f5b942]/30 bg-[#f5b942]/10 px-[7px] py-[2px] font-mono text-[10px] text-[#f5b942]">
+            <span className="rounded border border-(--amber-brd) bg-(--amber-bg) px-[7px] py-[2px] font-mono text-[10px] text-(--amber)">
               paste to improve answers
             </span>
           )}
           <span className="flex-1" />
-          <span className="font-mono text-[11px] text-[#8b8e98]">
+          <span className="font-mono text-[11px] text-(--muted)">
             {showStatement ? "collapse ▴" : "expand ▾"}
           </span>
         </button>
@@ -192,18 +192,18 @@ export function ProblemPanel({
               onBlur={(e) => saveStatement(e.target.value)}
               placeholder="Paste the full problem statement here…"
               spellCheck={false}
-              className="h-48 w-full resize-y rounded-md border border-white/10 bg-[#0b0c10] p-3 text-[13.5px] leading-relaxed text-[#c6c8d0] outline-none focus:border-[#6d7cff]"
+              className="h-48 w-full resize-y rounded-md border border-(--border) bg-(--bg) p-3 text-[13.5px] leading-relaxed text-(--body-2) outline-none focus:border-(--accent)"
             />
           </div>
         ) : hasStatement ? (
           <div className="relative max-h-16 overflow-hidden px-4 pb-3">
-            <p className="m-0 max-w-[62ch] text-[13.5px] leading-[1.55] text-[#b8bac2]">
+            <p className="m-0 max-w-[62ch] text-[13.5px] leading-[1.55] text-(--body-2)">
               {statement.slice(0, 400)}
             </p>
-            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-gradient-to-b from-transparent to-[#0f1015]" />
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-gradient-to-b from-transparent to-(--surface)" />
           </div>
         ) : (
-          <p className="px-4 pb-3.5 text-[12.5px] text-[#6b6e79]">
+          <p className="px-4 pb-3.5 text-[12.5px] text-(--dim)">
             Open the statement on the judge and paste it here — cached for everyone after
             the first time.
           </p>
@@ -223,17 +223,17 @@ export function ProblemPanel({
               onClick={() => setMode(m.id)}
               className={`flex flex-col items-start gap-1 rounded-lg border px-3 py-[11px] text-left transition ${
                 active
-                  ? "border-[#6d7cff] bg-[#6d7cff]/10"
-                  : "border-white/[0.08] bg-[#0f1015] hover:border-white/20 hover:bg-[#12131a]"
+                  ? "border-(--accent) bg-(--accent-bg)"
+                  : "border-(--border) bg-(--surface) hover:border-(--border-hover) hover:bg-(--surface-2)"
               }`}
             >
               <span
-                className={`text-[13px] font-semibold ${active ? "text-[#e8e9ee]" : "text-[#b8bac2]"}`}
+                className={`text-[13px] font-semibold ${active ? "text-(--text)" : "text-(--body-2)"}`}
               >
                 {m.label}
               </span>
               <span
-                className={`font-mono text-[10px] ${active ? "text-[#aab2ff]" : "text-[#8b8e98]"}`}
+                className={`font-mono text-[10px] ${active ? "text-(--accent-soft)" : "text-(--muted)"}`}
               >
                 {m.sub}
               </span>
@@ -244,14 +244,14 @@ export function ProblemPanel({
 
       {/* Key takeaways — populated by the tutor */}
       {keyPoints.length > 0 && (
-        <div className="rounded-lg border border-white/[0.08] bg-[#0f1015] p-4">
-          <div className="mb-2 font-mono text-[10.5px] tracking-[0.14em] text-[#8b8e98]">
+        <div className="rounded-lg border border-(--border) bg-(--surface) p-4">
+          <div className="mb-2 font-mono text-[10.5px] tracking-[0.14em] text-(--muted)">
             KEY TAKEAWAYS
           </div>
           <ul className="space-y-1.5">
             {keyPoints.map((p, i) => (
-              <li key={i} className="flex gap-2 text-[13px] text-[#b8bac2]">
-                <span className="text-[#6d7cff]">•</span>
+              <li key={i} className="flex gap-2 text-[13px] text-(--body-2)">
+                <span className="text-(--accent)">•</span>
                 <span>{p}</span>
               </li>
             ))}
