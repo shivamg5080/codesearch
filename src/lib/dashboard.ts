@@ -53,10 +53,17 @@ export interface RecentProblem {
   status: "solved" | "attempting" | "review-due";
   when: string; // relative, e.g. "2d ago"
 }
+export interface PracticeNext {
+  tag: string;
+  label: string;
+  mastery: number;
+  problems: { id: string; title: string; source: Source; difficulty: number | null }[];
+}
 export interface TopicRow {
   tag: string;
   label: string;
   slug: string;
+  engaged: number; // problems touched in this topic (drives recommendations)
   solved: number;
   mastery: number; // 0..100
   masteryTone: "green" | "amber" | "neutral";
@@ -75,6 +82,7 @@ export interface LearnerDashboard {
   kpis: Kpi[];
   mix: MixSegment[];
   topics: TopicRow[];
+  practiceNext: PracticeNext | null;
   hasData: boolean;
 }
 
@@ -298,16 +306,55 @@ export async function getLearnerDashboard(
     }
   }
 
-  const topics: TopicRow[] = [...groups.entries()]
-    .map(([tag, g]) => buildTopic(tag, g.rows, g.subtags, perProblem, now))
+  const allTopics = [...groups.entries()].map(([tag, g]) =>
+    buildTopic(tag, g.rows, g.subtags, perProblem, now),
+  );
+  const topics: TopicRow[] = [...allTopics]
     // Most-practised topics first; keep the table focused.
     .sort((a, b) => b.solved - a.solved || b.stats.solved - a.stats.solved)
     .slice(0, 8);
+
+  // --- "Practice next": 3 fresh problems from the weakest engaged topic. ---
+  const weakest = allTopics
+    .filter((t) => t.engaged >= 2 && t.mastery < 85)
+    .sort((a, b) => a.mastery - b.mastery || b.engaged - a.engaged)[0];
+  let practiceNext: PracticeNext | null = null;
+  if (weakest) {
+    const target = weakest.avgDifficulty ?? 3;
+    const recs = await prisma.problem.findMany({
+      where: {
+        tags: { has: weakest.tag },
+        difficultyNormalized: {
+          gte: Math.max(1, Math.floor(target - 1)),
+          lte: Math.min(10, Math.ceil(target + 1)),
+        },
+        id: { notIn: statuses.map((s) => s.problemId) },
+        ...(opts.source ? { source: opts.source } : {}),
+      },
+      orderBy: { difficultyNormalized: "asc" },
+      take: 3,
+      select: { id: true, title: true, source: true, difficultyNormalized: true },
+    });
+    if (recs.length > 0) {
+      practiceNext = {
+        tag: weakest.tag,
+        label: weakest.label,
+        mastery: weakest.mastery,
+        problems: recs.map((p) => ({
+          id: p.id,
+          title: p.title,
+          source: p.source,
+          difficulty: p.difficultyNormalized,
+        })),
+      };
+    }
+  }
 
   return {
     kpis,
     mix,
     topics,
+    practiceNext,
     hasData: statuses.length > 0,
   };
 }
@@ -409,6 +456,7 @@ function buildTopic(
     tag,
     label: titleCase(tag),
     slug: topSub ? `${tag} · ${topSub}` : tag,
+    engaged: rows.length,
     solved,
     mastery,
     masteryTone,

@@ -15,7 +15,7 @@ import type { Source } from "@prisma/client";
 const NAV = [
   { label: "Dashboard", href: "/dashboard", icon: "▦", active: true },
   { label: "Problems", href: "/", icon: "≣", active: false },
-  { label: "Reviews", href: "/dashboard", icon: "◷", active: false },
+  { label: "Reviews", href: "/reviews", icon: "◷", active: false },
   { label: "Tutor", href: "/", icon: "▢", active: false },
 ];
 
@@ -169,6 +169,14 @@ export function LearnerDashboard({
               >
                 {k.sub}
               </div>
+              {k.label === "Due for review" && parseInt(k.value, 10) > 0 && (
+                <Link
+                  href="/reviews"
+                  className="mt-1 inline-block text-xs font-semibold text-emerald-600 hover:text-emerald-700"
+                >
+                  Review now →
+                </Link>
+              )}
               <Spark spark={k.spark} />
             </div>
           ))}
@@ -196,6 +204,38 @@ export function LearnerDashboard({
                   <span className={`h-2 w-2 rounded-full ${MIX_DOT[m.tone]}`} />
                   {m.label} <span className="font-semibold text-neutral-700">{m.pct}%</span>
                 </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Practice next — weakest topic, fresh problems */}
+        {data.practiceNext && (
+          <div className="mt-5 rounded-2xl border border-neutral-200 bg-white p-5">
+            <div className="mb-3 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+              <span className="font-mono text-[11px] uppercase tracking-wider text-neutral-400">
+                Practice next
+              </span>
+              <span className="font-semibold">{data.practiceNext.label}</span>
+              <span className="text-xs text-neutral-400">
+                your weakest topic · mastery {data.practiceNext.mastery}%
+              </span>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-3">
+              {data.practiceNext.problems.map((p) => (
+                <Link
+                  key={p.id}
+                  href={`/problems/${p.id}`}
+                  className="group rounded-xl border border-neutral-200 px-4 py-3 transition hover:border-emerald-400 hover:bg-emerald-50/40"
+                >
+                  <div className="truncate text-sm font-semibold group-hover:text-emerald-700">
+                    {p.title}
+                  </div>
+                  <div className="mt-1 font-mono text-xs text-neutral-400">
+                    {SOURCE_LABEL[p.source]}
+                    {p.difficulty != null ? ` · diff ${p.difficulty}/10` : ""}
+                  </div>
+                </Link>
               ))}
             </div>
           </div>

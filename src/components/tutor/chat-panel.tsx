@@ -53,8 +53,8 @@ function messageText(content: unknown): string {
 
 function TutorMessage({ message, isLoading, isCurrentMessage }: AssistantMessageProps) {
   const content = messageText(message?.content);
-  const thinking = !content && !!isLoading && !!isCurrentMessage;
-  if (!content && !thinking) return null;
+  const thinking = !content.trim() && !!isLoading && !!isCurrentMessage;
+  if (!content.trim() && !thinking) return null;
   return (
     <div className="mb-3 flex max-w-[88%] flex-col gap-2 self-start rounded-xl border border-white/[0.06] border-l-2 border-l-[#6d7cff] bg-[#191b24] px-[15px] py-3">
       <div className="flex items-center gap-2">
@@ -62,7 +62,18 @@ function TutorMessage({ message, isLoading, isCurrentMessage }: AssistantMessage
         <span className="font-mono text-[10px] text-[#8b8e98]">TUTOR</span>
       </div>
       {thinking ? (
-        <span className="font-mono text-[12px] text-[#8b8e98]">thinking…</span>
+        <span className="flex items-center gap-2 py-1" aria-label="The tutor is thinking">
+          <span className="flex items-center gap-1">
+            {[0, 1, 2].map((i) => (
+              <span
+                key={i}
+                className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#6d7cff]"
+                style={{ animationDelay: `${i * 220}ms` }}
+              />
+            ))}
+          </span>
+          <span className="font-mono text-[11px] text-[#8b8e98]">thinking</span>
+        </span>
       ) : (
         <div className="tutor-markdown text-[13.5px] leading-relaxed text-[#d7d9e0]">
           <Markdown content={content} />
