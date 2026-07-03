@@ -89,7 +89,7 @@ export default async function Home({
     : {};
 
   return (
-    <main className="min-h-screen bg-[#0b0c10] text-[#e8e9ee]">
+    <main className="min-h-screen bg-[#0b0c10] text-[#e8e9ee] [color-scheme:dark]">
       <div className="mx-auto max-w-6xl px-6 py-10">
         <header className="mb-8 flex items-start justify-between gap-4">
           <div>

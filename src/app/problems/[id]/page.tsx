@@ -39,7 +39,7 @@ export default async function ProblemPage({
       .toUpperCase() || "U";
 
   return (
-    <main className="min-h-screen bg-[#0b0c10] text-[#e8e9ee]">
+    <main className="min-h-screen bg-[#0b0c10] text-[#e8e9ee] [color-scheme:dark]">
       <div className="flex h-12 items-center gap-4 border-b border-white/[0.08] px-4">
         <Link
           href="/"
