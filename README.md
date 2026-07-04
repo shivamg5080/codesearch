@@ -1,6 +1,6 @@
 # CodeSearch — vernacular AI tutor for competitive programming
 
-**Live:** https://codesearch-iota.vercel.app/
+**Live:** https://das.boats/
 
 CodeSearch is an AI-native learning platform for DSA and competitive programming.
 Instead of handing over solutions, it **tutors** — guiding learners with progressive

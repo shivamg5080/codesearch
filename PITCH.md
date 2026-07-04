@@ -4,7 +4,7 @@
 > programming — built on Sarvam AI so Indian students can learn DSA in their own
 > language.** We're requesting Sarvam startup credits to run a pilot.
 
-**Live product:** https://codesearch-iota.vercel.app/ · **Repo:** this repository
+**Live product:** https://das.boats/ · **Repo:** this repository
 
 *(Placeholders in «angle brackets» to fill before sending.)*
 Founder: «name» · Contact: «email / phone» · Stage: «pre-seed / bootstrapped»
