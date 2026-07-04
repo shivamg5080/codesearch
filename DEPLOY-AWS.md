@@ -17,9 +17,10 @@ Cost inside the new AWS free plan (~$100 credits / 6 months):
 1. Create the AWS account → **Billing → Budgets → create a $5 monthly budget
    with an email alert.** Credits running out silently is the classic AWS story.
 2. Pick a region close to users (e.g. `ap-south-1`, Mumbai).
-3. You need a hostname for HTTPS + OAuth callbacks. Either a domain you own,
-   or a free subdomain from [DuckDNS](https://www.duckdns.org)
-   (e.g. `codesearch.duckdns.org`).
+3. You need a hostname for HTTPS + OAuth callbacks. Use a subdomain of your
+   own domain (recommended split: keep the apex/`www` on Vercel production and
+   give EC2 something like `aws.yourdomain.com`), or a free
+   [DuckDNS](https://www.duckdns.org) subdomain if you have no domain.
 
 ## 1. Launch the instance
 
@@ -34,7 +35,9 @@ EC2 → Launch instance:
 | Security group | SSH 22 → *My IP only* · HTTP 80 → anywhere · HTTPS 443 → anywhere |
 
 Then: **Elastic IPs → Allocate → Associate** with the instance (so the IP
-survives restarts), and point your DNS A record (or DuckDNS) at it.
+survives restarts), and in your domain registrar's DNS panel add an **A record**
+(e.g. name `aws`, value = the Elastic IP, TTL 300). Wait a minute and verify:
+`dig +short aws.yourdomain.com` should print the IP.
 
 ## 2. System setup
 
@@ -109,7 +112,7 @@ sudo nano /etc/caddy/Caddyfile
 Replace the contents with (your hostname):
 
 ```
-codesearch.duckdns.org {
+aws.yourdomain.com {
     reverse_proxy 127.0.0.1:3000
 }
 ```
@@ -118,7 +121,7 @@ codesearch.duckdns.org {
 sudo systemctl reload caddy
 ```
 
-Caddy fetches the certificate automatically; `https://codesearch.duckdns.org`
+Caddy fetches the certificate automatically; `https://aws.yourdomain.com`
 is live. (Auth.js works because `trustHost: true` is set and Caddy forwards
 `X-Forwarded-Host/Proto`.)
 
