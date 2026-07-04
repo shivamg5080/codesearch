@@ -19,7 +19,7 @@ Cost inside the new AWS free plan (~$100 credits / 6 months):
 2. Pick a region close to users (e.g. `ap-south-1`, Mumbai).
 3. You need a hostname for HTTPS + OAuth callbacks. Use a subdomain of your
    own domain (recommended split: keep the apex/`www` on Vercel production and
-   give EC2 something like `aws.yourdomain.com`), or a free
+   give EC2 something like `aws.das.boats`), or a free
    [DuckDNS](https://www.duckdns.org) subdomain if you have no domain.
 
 ## 1. Launch the instance
@@ -37,7 +37,7 @@ EC2 → Launch instance:
 Then: **Elastic IPs → Allocate → Associate** with the instance (so the IP
 survives restarts), and in your domain registrar's DNS panel add an **A record**
 (e.g. name `aws`, value = the Elastic IP, TTL 300). Wait a minute and verify:
-`dig +short aws.yourdomain.com` should print the IP.
+`dig +short aws.das.boats` should print the IP.
 
 ## 2. System setup
 
@@ -112,7 +112,7 @@ sudo nano /etc/caddy/Caddyfile
 Replace the contents with (your hostname):
 
 ```
-aws.yourdomain.com {
+aws.das.boats {
     reverse_proxy 127.0.0.1:3000
 }
 ```
@@ -121,7 +121,7 @@ aws.yourdomain.com {
 sudo systemctl reload caddy
 ```
 
-Caddy fetches the certificate automatically; `https://aws.yourdomain.com`
+Caddy fetches the certificate automatically; `https://aws.das.boats`
 is live. (Auth.js works because `trustHost: true` is set and Caddy forwards
 `X-Forwarded-Host/Proto`.)
 
