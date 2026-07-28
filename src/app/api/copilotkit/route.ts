@@ -57,7 +57,7 @@ function buildAdapter(requested?: string | null): CopilotServiceAdapter {
         apiKey: process.env.SARVAM_API_KEY,
         baseURL: "https://api.sarvam.ai/v1",
       }),
-      model: process.env.SARVAM_MODEL ?? "sarvam-30b",
+      model: process.env.SARVAM_MODEL ?? "sarvam-105b",
     });
   }
   return new OpenAIAdapter({
