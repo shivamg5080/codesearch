@@ -38,7 +38,7 @@ Sarvam is the core of the experience — three Sarvam capabilities are wired in:
 |---|---|---|---|
 | Speech-to-text | `saaras:v3` | `src/lib/sarvam.ts` → `/api/voice/stt` | Transcribes the learner's spoken question; auto-detects the Indian language |
 | Text-to-speech | `bulbul:v2` | `src/lib/sarvam.ts` → `/api/voice/tts` | Reads the tutor's replies aloud in the chosen language |
-| Tutor chat (LLM) | `sarvam-30b` (OpenAI-compatible `/v1/chat/completions`) | `src/app/api/copilotkit/route.ts` | Generates the vernacular, hint-gated tutoring |
+| Tutor chat (LLM) | `sarvam-105b` (OpenAI-compatible `/v1/chat/completions`) | `src/app/api/copilotkit/route.ts` | Generates the vernacular, hint-gated tutoring |
 
 The chat brain is **Sarvam-native by default**; a model selector lets the learner
 switch to OpenAI, but Sarvam is the hero and the fallback path is model-agnostic.
