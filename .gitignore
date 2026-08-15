@@ -46,3 +46,6 @@ next-env.d.ts
 
 # eval transcripts (local artifacts)
 evals/results/
+
+# code-understanding tool cache (local artifacts)
+.ua/
