@@ -67,10 +67,12 @@ export function CodePanel({
   const verdictOut = result?.stdout?.trim().split("\n")[0]?.slice(0, 40);
 
   return (
-    <div className="overflow-hidden rounded-lg border border-(--border) bg-(--code-bg)">
-      {/* Tab bar */}
-      <div className="flex h-10 items-center border-b border-(--border) bg-(--surface-2)">
-        <div className="flex h-full items-center gap-2 border-r border-(--border) bg-(--code-bg) px-3.5">
+    // No overflow-hidden here: it would make this box the sticky containing
+    // scrollport and the tab bar would never pin while the column scrolls.
+    <div className="rounded-lg border border-(--border) bg-(--code-bg)">
+      {/* Tab bar — sticky so Run stays reachable however long the panel grows */}
+      <div className="sticky top-0 z-10 flex h-10 items-center rounded-t-lg border-b border-(--border) bg-(--surface-2)">
+        <div className="flex h-full items-center gap-2 rounded-tl-lg border-r border-(--border) bg-(--code-bg) px-3.5">
           <span className="font-mono text-xs text-(--text)">solution.cpp</span>
           <span className="rounded border border-(--border-strong) px-1.5 py-[2px] font-mono text-[9.5px] text-(--muted)">
             C++17
@@ -113,7 +115,7 @@ export function CodePanel({
       </div>
 
       {/* stdin + verdict strip */}
-      <div className="flex flex-col gap-2 border-t border-(--border) bg-(--code-strip) px-3 py-[9px]">
+      <div className="flex flex-col gap-2 rounded-b-lg border-t border-(--border) bg-(--code-strip) px-3 py-[9px]">
         <div className="flex items-center gap-3">
           <button
             onClick={() => setStdinOpen((s) => !s)}
@@ -165,24 +167,24 @@ export function CodePanel({
         {result && (result.compileOutput || result.stderr || (!accepted && result.stdout)) && (
           <div className="flex flex-col gap-2">
             {result.stdout && !accepted && (
-              <pre className="overflow-x-auto whitespace-pre-wrap rounded-md bg-(--bg) p-2 font-mono text-xs text-(--body-2)">
+              <pre className="max-h-56 overflow-auto whitespace-pre-wrap rounded-md bg-(--bg) p-2 font-mono text-xs text-(--body-2)">
                 {result.stdout}
               </pre>
             )}
             {result.compileOutput && (
-              <pre className="overflow-x-auto whitespace-pre-wrap rounded-md bg-(--bg) p-2 font-mono text-xs text-(--amber)">
+              <pre className="max-h-56 overflow-auto whitespace-pre-wrap rounded-md bg-(--bg) p-2 font-mono text-xs text-(--amber)">
                 {result.compileOutput}
               </pre>
             )}
             {result.stderr && (
-              <pre className="overflow-x-auto whitespace-pre-wrap rounded-md bg-(--bg) p-2 font-mono text-xs text-(--red)">
+              <pre className="max-h-56 overflow-auto whitespace-pre-wrap rounded-md bg-(--bg) p-2 font-mono text-xs text-(--red)">
                 {result.stderr}
               </pre>
             )}
           </div>
         )}
         {result && accepted && result.stdout && result.stdout.trim().includes("\n") && (
-          <pre className="overflow-x-auto whitespace-pre-wrap rounded-md bg-(--bg) p-2 font-mono text-xs text-(--body-2)">
+          <pre className="max-h-56 overflow-auto whitespace-pre-wrap rounded-md bg-(--bg) p-2 font-mono text-xs text-(--body-2)">
             {result.stdout}
           </pre>
         )}

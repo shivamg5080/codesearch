@@ -126,12 +126,18 @@ export function ProblemPanel({
   authed: boolean;
 }) {
   const hasStatement = !!statement.trim();
+  // Read view by default when a statement exists — the full question stays
+  // visible instead of scrolling inside a fixed-height textarea.
+  const [editingStatement, setEditingStatement] = useState(false);
 
   return (
-    <div className="flex flex-col gap-5 overflow-y-auto border-r border-(--border) bg-(--bg) p-6">
+    // [&>*]:shrink-0 — this column is a flex scroller; without it, children get
+    // flex-squashed to fit the viewport and the overflow-hidden cards (statement,
+    // code panel) clip their content instead of the column scrolling.
+    <div className="flex min-w-0 flex-col gap-5 overflow-y-auto border-r border-(--border) bg-(--bg) p-6 [&>*]:shrink-0">
       {/* Problem header */}
       <div className="flex flex-col gap-3">
-        <h1 className="text-[44px] font-extrabold leading-[1.05] tracking-[-0.03em] text-(--text)">
+        <h1 className="break-words text-[44px] font-extrabold leading-[1.05] tracking-[-0.03em] text-(--text)">
           {problem.title}
         </h1>
         <div className="flex flex-wrap items-center gap-2 font-mono text-[11.5px]">
@@ -162,39 +168,60 @@ export function ProblemPanel({
 
       {/* Statement document card */}
       <div className="overflow-hidden rounded-lg border border-(--border) bg-(--surface)">
-        <button
-          onClick={() => setShowStatement((s) => !s)}
-          className="flex w-full items-center gap-2.5 px-4 pb-2.5 pt-3.5 text-left"
-        >
-          <span className="font-mono text-[10.5px] tracking-[0.14em] text-(--muted)">
-            PROBLEM STATEMENT
-          </span>
-          {hasStatement ? (
-            <span className="rounded border border-(--green-brd) bg-(--green-bg) px-[7px] py-[2px] font-mono text-[10px] text-(--green)">
-              provided
+        <div className="flex w-full items-center gap-2.5 px-4 pb-2.5 pt-3.5">
+          <button
+            onClick={() => setShowStatement((s) => !s)}
+            className="flex min-w-0 flex-1 items-center gap-2.5 text-left"
+          >
+            <span className="font-mono text-[10.5px] tracking-[0.14em] text-(--muted)">
+              PROBLEM STATEMENT
             </span>
-          ) : (
-            <span className="rounded border border-(--amber-brd) bg-(--amber-bg) px-[7px] py-[2px] font-mono text-[10px] text-(--amber)">
-              paste to improve answers
+            {hasStatement ? (
+              <span className="rounded border border-(--green-brd) bg-(--green-bg) px-[7px] py-[2px] font-mono text-[10px] text-(--green)">
+                provided
+              </span>
+            ) : (
+              <span className="rounded border border-(--amber-brd) bg-(--amber-bg) px-[7px] py-[2px] font-mono text-[10px] text-(--amber)">
+                paste to improve answers
+              </span>
+            )}
+            <span className="flex-1" />
+            <span className="font-mono text-[11px] text-(--muted)">
+              {showStatement ? "collapse ▴" : "expand ▾"}
             </span>
+          </button>
+          {showStatement && hasStatement && (
+            <button
+              onClick={() => setEditingStatement((e) => !e)}
+              className="rounded border border-(--border-strong) px-2 py-[2px] font-mono text-[10.5px] text-(--muted) transition hover:bg-(--hover) hover:text-(--text)"
+            >
+              {editingStatement ? "done" : "edit"}
+            </button>
           )}
-          <span className="flex-1" />
-          <span className="font-mono text-[11px] text-(--muted)">
-            {showStatement ? "collapse ▴" : "expand ▾"}
-          </span>
-        </button>
+        </div>
 
         {showStatement ? (
-          <div className="px-4 pb-4">
-            <textarea
-              value={statement}
-              onChange={(e) => setStatement(e.target.value)}
-              onBlur={(e) => saveStatement(e.target.value)}
-              placeholder="Paste the full problem statement here…"
-              spellCheck={false}
-              className="h-48 w-full resize-y rounded-md border border-(--border) bg-(--bg) p-3 text-[13.5px] leading-relaxed text-(--body-2) outline-none focus:border-(--accent)"
-            />
-          </div>
+          editingStatement || !hasStatement ? (
+            <div className="px-4 pb-4">
+              <textarea
+                value={statement}
+                onChange={(e) => setStatement(e.target.value)}
+                // Typing into an empty card must not flip to the read view on
+                // the first character — mark it as editing on focus.
+                onFocus={() => setEditingStatement(true)}
+                onBlur={(e) => saveStatement(e.target.value)}
+                placeholder="Paste the full problem statement here…"
+                spellCheck={false}
+                className="min-h-48 w-full resize-y rounded-md border border-(--border) bg-(--bg) p-3 text-[13.5px] leading-relaxed text-(--body-2) outline-none field-sizing-content focus:border-(--accent)"
+              />
+            </div>
+          ) : (
+            <div className="px-4 pb-4">
+              <p className="m-0 max-w-[62ch] whitespace-pre-wrap break-words text-[13.5px] leading-[1.6] text-(--body-2)">
+                {statement}
+              </p>
+            </div>
+          )
         ) : hasStatement ? (
           <div className="relative max-h-16 overflow-hidden px-4 pb-3">
             <p className="m-0 max-w-[62ch] text-[13.5px] leading-[1.55] text-(--body-2)">

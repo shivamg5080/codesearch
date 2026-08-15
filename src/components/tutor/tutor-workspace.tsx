@@ -177,7 +177,7 @@ function Workspace({
       />
 
       {/* Right: the tutor room */}
-      <div className="flex min-h-0 flex-col bg-(--room)">
+      <div className="flex min-h-0 min-w-0 flex-col bg-(--room)">
         <div className="flex items-start gap-3 px-5 pb-3 pt-5">
           <span className="animate-presence mt-[5px] h-3 w-3 flex-none rounded-full bg-(--accent) shadow-[0_0_10px_2px_rgba(109,124,255,0.45)]" />
           <div className="flex flex-col gap-[3px]">
