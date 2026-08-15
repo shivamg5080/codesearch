@@ -39,7 +39,7 @@ dashboard are all live.
 |---|---|---|
 | Speech-to-text | `saaras:v3` | Transcribe spoken questions; auto-detect the language |
 | Text-to-speech | `bulbul:v2` | Read tutor replies aloud in the learner's language |
-| Tutor chat (LLM) | `sarvam-30b` | Generate vernacular, hint-gated tutoring (default brain) |
+| Tutor chat (LLM) | `sarvam-105b` | Generate vernacular, hint-gated tutoring (default brain) |
 
 Sarvam is the **default and hero**; an OpenAI fallback exists but the product is
 Sarvam-native.

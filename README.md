@@ -65,7 +65,7 @@ switch to OpenAI, but Sarvam is the hero and the fallback path is model-agnostic
            ▼                        ▼                ▼                    ▼
    ┌────────────────────┐  ┌─────────────────┐  ┌──────────┐   ┌────────────────────┐
    │  Sarvam AI         │  │   Sarvam AI     │  │ Wandbox  │   │ PostgreSQL (Neon)  │
-   │  chat (sarvam-30b) │  │  STT + TTS      │  │ (C++ run)│   │ via Prisma ORM     │
+   │ chat (sarvam-105b) │  │  STT + TTS      │  │ (C++ run)│   │ via Prisma ORM     │
    │  ↳ OpenAI (opt.)   │  └─────────────────┘  └──────────┘   └────────────────────┘
    └────────────────────┘
 
@@ -122,7 +122,7 @@ switch to OpenAI, but Sarvam is the hero and the fallback path is model-agnostic
 ## Tech stack
 
 - **Framework:** Next.js 16 (App Router, Turbopack), React 19, TypeScript
-- **AI:** Sarvam AI (STT `saaras:v3`, TTS `bulbul:v2`, chat `sarvam-30b`) · OpenAI (optional)
+- **AI:** Sarvam AI (STT `saaras:v3`, TTS `bulbul:v2`, chat `sarvam-105b`) · OpenAI (optional)
 - **Agent UI:** CopilotKit (`@copilotkit/*`) · optional LangGraph (`@langchain/langgraph`, AG-UI)
 - **Data:** PostgreSQL + Prisma ORM
 - **Auth:** Auth.js / NextAuth v5 (Google, GitHub, dev email)
@@ -173,7 +173,7 @@ npm run dev                    # http://localhost:3000
 |---|---|---|
 | `DATABASE_URL` | ✅ | Postgres connection string (Neon / Supabase / local) |
 | `SARVAM_API_KEY` | ✅ | Powers voice (STT + TTS) and the default tutor chat |
-| `SARVAM_MODEL` | — | Chat model override (default `sarvam-30b`) |
+| `SARVAM_MODEL` | — | Chat model override (default `sarvam-105b`) |
 | `TUTOR_PROVIDER` | — | `sarvam` (default) or `openai` |
 | `OPENAI_API_KEY` / `OPENAI_MODEL` | — | Only if using OpenAI as the tutor brain |
 | `AUTH_SECRET` | ✅ | Generate with `npx auth secret` |

@@ -74,7 +74,8 @@ function makeClient(kind: "sarvam" | "openai"): { client: OpenAI; model: string 
         apiKey: process.env.SARVAM_API_KEY,
         baseURL: "https://api.sarvam.ai/v1",
       }),
-      model: process.env.SARVAM_MODEL ?? "sarvam-30b",
+      // sarvam-30b was deprecated by the API (Aug 2026); 105b is what the app runs.
+      model: process.env.SARVAM_MODEL ?? "sarvam-105b",
     };
   }
   if (!process.env.OPENAI_API_KEY) throw new Error("OPENAI_API_KEY not set");
